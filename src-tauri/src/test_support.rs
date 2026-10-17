@@ -2,6 +2,10 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// 进程内的唯一序号：并行测试在同一微秒创建 TempDir 时避免路径冲突。
+static TEMP_DIR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// 测试用临时目录，`Drop` 时清理。
 #[derive(Debug)]
@@ -9,9 +13,11 @@ pub struct TempDir(PathBuf);
 
 impl TempDir {
     pub fn new() -> Self {
+        let sequence = TEMP_DIR_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         let unique = format!(
-            "myreader-test-{}-{}",
+            "myreader-test-{}-{}-{}",
             std::process::id(),
+            sequence,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|duration| duration.as_nanos())
