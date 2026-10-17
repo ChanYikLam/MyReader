@@ -396,6 +396,10 @@ katex.renderToString(tex, {
 4. **CSP**（生产）：
    `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http: https: data:; font-src 'self' data:; connect-src ipc: http://ipc.localhost`
    （`style-src 'unsafe-inline'` 因 KaTeX 行内 style 属性；dev 用 `devCsp` 放宽 HMR ws + 内联脚本）。
+   实现注记：Tauri 构建期会往 `style-src` 注入 nonce，按 CSP 规范这会让 `'unsafe-inline'`
+   失效，从而屏蔽 KaTeX 公式排版所必需的行内 `style` 属性。因此对 `style-src`
+   关闭 CSP 自动修改（`dangerousDisableAssetCspModification: ["style-src"]`）；
+   `script-src` 仍由 Tauri 注入 hash，用户内容已 sanitize 且禁止 `style` 属性，风险可控。
 5. **本地图片**：经 Tauri asset 协议加载（`app.security.assetProtocol.enable = true`），加载前 Rust 对每张图片 `allow_file(绝对路径)`；只允许 HTML 中真实出现、且被 Rust 解析过的图片路径，不开放任意目录。
 6. **导航**：链接一律 preventDefault，不提供应用内导航入口。
 7. **验收 12 三例**：`<script>alert(1)</script>`（转义为文本，不执行）、`[x](javascript:alert(1))`（ammonia 剥离、前端拦截）、`$\href{javascript:alert(1)}{x}$`（trust:false，公式内不跳转）。
