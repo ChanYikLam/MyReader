@@ -96,6 +96,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
+    use crate::media::ImageKind;
     use crate::test_support::TempDir;
 
     /// 仓库根目录下的验收夹具（tests/fixtures/）。
@@ -167,6 +168,65 @@ mod tests {
         assert!(document.html.contains("data-footnotes"));
         assert!(document.html.contains("footnote-backref"));
         assert!(document.html.contains("<del>删除</del>"));
+    }
+
+    #[test]
+    fn renders_all_elements_fixture() {
+        let document = load_document(&fixture("elements.md")).expect("夹具应能加载");
+
+        // 表格 + 对齐
+        assert!(document.html.contains("<table>"), "html={}", document.html);
+        assert!(document.html.contains(r#"align="center""#));
+        // 任务列表
+        assert!(document.html.contains(r#"type="checkbox""#));
+        assert!(document.html.contains("task-list"));
+        // 代码高亮（class 模式）
+        assert!(document.html.contains("syntax-highlighting"));
+        assert!(document.html.contains("hl-source"));
+        assert!(document.html.contains("language-rust"));
+        // 删除线 / 脚注 / 嵌套引用
+        assert!(document.html.contains("<del>"));
+        assert!(document.html.contains("footnotes"));
+        assert!(document.html.contains("footnote-backref"));
+        assert!(document.html.matches("<blockquote>").count() >= 2);
+        // 图片标签
+        assert!(document.html.contains("<img"));
+    }
+
+    #[test]
+    fn resolves_images_in_fixture() {
+        let document = load_document(&fixture("elements.md")).expect("夹具应能加载");
+
+        let find = |src: &str| {
+            document
+                .images
+                .iter()
+                .find(|image| image.src == src)
+                .unwrap_or_else(|| panic!("缺少图片资源 {src}: {:?}", document.images))
+        };
+
+        let photo = find("images/photo.png");
+        assert_eq!(photo.kind, ImageKind::Local);
+        assert!(photo.exists);
+        assert_eq!((photo.width, photo.height), (Some(320), Some(160)));
+        assert!(photo
+            .path
+            .as_deref()
+            .is_some_and(|p| p.ends_with("photo.png")));
+
+        let svg = find("images/icon.svg");
+        assert_eq!(svg.kind, ImageKind::Local);
+        assert!(svg.exists);
+        // SVG 不探测尺寸 → 前端用固定占位盒
+        assert_eq!((svg.width, svg.height), (None, None));
+
+        let missing = find("images/missing.png");
+        assert_eq!(missing.kind, ImageKind::Local);
+        assert!(!missing.exists);
+
+        let remote = find("https://example.com/remote.png");
+        assert_eq!(remote.kind, ImageKind::Remote);
+        assert!(remote.path.is_none());
     }
 
     #[test]
