@@ -35,6 +35,9 @@ pub enum AppError {
     #[error("已拦截不安全的链接：{url}")]
     BlockedUrl { url: String },
 
+    #[error("设置读写失败")]
+    Settings { detail: String },
+
     #[error("内部错误")]
     Internal { detail: String },
 }
@@ -51,6 +54,7 @@ impl AppError {
             Self::Io { .. } => "io_error",
             Self::Dialog { .. } => "dialog",
             Self::BlockedUrl { .. } => "blocked_url",
+            Self::Settings { .. } => "settings",
             Self::Internal { .. } => "internal",
         }
     }
@@ -59,6 +63,7 @@ impl AppError {
         match self {
             Self::Io { source, .. } => Some(source.to_string()),
             Self::Dialog { detail } => Some(detail.clone()),
+            Self::Settings { detail } => Some(detail.clone()),
             Self::Internal { detail } => Some(detail.clone()),
             _ => None,
         }

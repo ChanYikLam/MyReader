@@ -33,6 +33,8 @@ ammonia = "4.2"
 tauri-plugin-dialog = "2.8"
 # 用系统默认浏览器打开外链（不在应用内导航，需求「链接」）。
 tauri-plugin-opener = "2.7"
+# 需求指定状态持久化：主题偏好/字号/滚动位置/最近文件（Rust 侧读写）。
+tauri-plugin-store = "2.5"
 
 [profile.dev]
 incremental = true

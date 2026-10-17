@@ -10,6 +10,7 @@ pub mod media;
 pub mod menu;
 pub mod parser;
 pub mod sanitize;
+pub mod settings;
 pub mod state;
 #[cfg(test)]
 pub mod test_support;
@@ -42,6 +43,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
         // 在 build 阶段注册状态：RunEvent::Opened 可能在 setup 之前到达。
         .manage(startup_state)
         .setup(move |app| {
