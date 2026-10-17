@@ -22,6 +22,8 @@ comrak = { version = "0.56", default-features = false }
 ammonia = "4.2"
 # 系统文件打开对话框（Cmd+O，需求「打开文件」）。
 tauri-plugin-dialog = "2.8"
+# 用系统默认浏览器打开外链（不在应用内导航，需求「链接」）。
+tauri-plugin-opener = "2.7"
 
 [profile.dev]
 incremental = true

@@ -33,6 +33,11 @@ export async function pickFile(): Promise<string | null> {
   return await invoke<string | null>("pick_file");
 }
 
+/** 用系统默认浏览器/邮件客户端打开外链（Rust 侧做协议白名单校验）。 */
+export async function openExternal(url: string): Promise<void> {
+  await invoke("open_external", { url });
+}
+
 /** 设置原生窗口标题（macOS 标题栏显示文件名，SPEC §18 A14）。 */
 export async function setWindowTitle(title: string): Promise<void> {
   await invoke("set_window_title", { title });

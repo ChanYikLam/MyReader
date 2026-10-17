@@ -1,4 +1,5 @@
 import { renderDocument, renderError, renderWelcome } from "./document";
+import { installLinkHandler } from "./links";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
 import {
   installDragDropListener,
@@ -93,6 +94,7 @@ export async function boot(): Promise<void> {
   );
 
   installRevealWatchdog();
+  installLinkHandler();
 
   void probeAnimationFrames(2, RAF_PROBE_TIMEOUT_MS).then((result) => {
     reportBootEvent("raf-probe", elapsedMs(), JSON.stringify(result));

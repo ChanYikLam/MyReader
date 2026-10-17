@@ -161,3 +161,9 @@
   border: 1px solid var(--border);
   border-radius: 5px;
 }
+
+/* 站内锚点跳转时的顶部留白（标题/脚注定位不在可视边缘） */
+.markdown-body :is(h1, h2, h3, h4, h5, h6),
+.markdown-body [id^="fn"] {
+  scroll-margin-top: 24px;
+}

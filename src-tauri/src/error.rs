@@ -32,6 +32,9 @@ pub enum AppError {
     #[error("无法打开文件选择对话框")]
     Dialog { detail: String },
 
+    #[error("已拦截不安全的链接：{url}")]
+    BlockedUrl { url: String },
+
     #[error("内部错误")]
     Internal { detail: String },
 }
@@ -47,6 +50,7 @@ impl AppError {
             Self::NotAFile { .. } => "not_a_file",
             Self::Io { .. } => "io_error",
             Self::Dialog { .. } => "dialog",
+            Self::BlockedUrl { .. } => "blocked_url",
             Self::Internal { .. } => "internal",
         }
     }

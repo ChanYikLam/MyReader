@@ -39,6 +39,7 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         // 在 build 阶段注册状态：RunEvent::Opened 可能在 setup 之前到达。
         .manage(startup_state)
         .setup(move |app| {
@@ -53,6 +54,7 @@ pub fn run() {
             commands::bootstrap,
             commands::open_path,
             commands::pick_file,
+            commands::open_external,
             commands::reveal_window,
             commands::report_boot_event,
             commands::set_window_title,

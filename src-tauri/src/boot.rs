@@ -51,6 +51,13 @@ pub fn create_main_window(
 
     let window = WebviewWindowBuilder::from_config(app, &window_config)?
         .initialization_script(init_script)
+        // 导航守卫：应用内只允许本地页面；外链一律由前端拦截后交给
+        // 系统浏览器，绝不在应用内跳转（SPEC §12/§13）。
+        .on_navigation(|url| match url.scheme() {
+            "tauri" => true,
+            "http" | "https" => matches!(url.host_str(), Some("localhost") | Some("127.0.0.1")),
+            _ => false,
+        })
         .build()?;
 
     // 诊断：确认窗口按配置尺寸创建（首帧机制调试用，见 SPEC §9.9）。

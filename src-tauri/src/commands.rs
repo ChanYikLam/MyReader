@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::Serialize;
 use tauri::WebviewWindow;
+use tauri_plugin_opener::OpenerExt;
 
 use crate::diagnostics;
 use crate::document::{self, DocumentPayload};
@@ -79,6 +80,29 @@ pub fn reveal_window(window: WebviewWindow) -> Result<(), String> {
         window.outer_size(),
     ));
     Ok(())
+}
+
+/// 用系统默认浏览器/邮件客户端打开外部链接。
+///
+/// 协议白名单：仅 http/https/mailto（SPEC §13）；其余一律拒绝，
+/// 前端 `links.ts` 也会在点击时做同样的拦截。
+#[tauri::command]
+pub fn open_external(app: tauri::AppHandle, url: String) -> Result<(), AppError> {
+    let scheme = url
+        .split(':')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    if !matches!(scheme.as_str(), "http" | "https" | "mailto") {
+        return Err(AppError::BlockedUrl { url });
+    }
+
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|error| AppError::Internal {
+            detail: error.to_string(),
+        })
 }
 
 /// 设置原生窗口标题（macOS 标题栏显示当前文件名，SPEC §18 A14）。
