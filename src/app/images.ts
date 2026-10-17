@@ -8,21 +8,26 @@
  *   width/height 属性（浏览器按固有比例预留空间），探测不到（SVG 等）
  *   用固定 16:10 占位盒（object-fit: contain，加载后盒子高度不变）；
  * - 缺失/非法图片：固定占位盒 + alt 文案；
- * - 远程图片：本提交先交给浏览器默认加载，远程预加载在后续提交实现。
+ * - 远程图片：首帧前统一预加载（整体上限 800ms，SPEC §18 A4）：
+ *   成功则写 width/height 预留高度；失败/超时用固定 16:10 占位盒。
  */
 
 import { convertFileSrc } from "@tauri-apps/api/core";
 
 import type { DocumentPayload, ImageResource } from "./types";
 
-/** 视口内图片等待上限：超时也继续（占位尺寸已定，不阻塞首帧太久）。 */
+/** 视口内本地图片等待上限：超时也继续（占位尺寸已定，不阻塞首帧太久）。 */
 const IN_VIEW_IMAGE_TIMEOUT_MS = 300;
+/** 全部远程图片预加载的总时间上限（SPEC §18 A4）。 */
+const REMOTE_PRELOAD_TIMEOUT_MS = 800;
 
 /** 图片处理统计（写入启动日志，便于验收与性能诊断）。 */
 export interface ImagePreparationStats {
   total: number;
   local: number;
   remote: number;
+  remoteLoaded: number;
+  remotePlaceholder: number;
   placeholder: number;
   missing: number;
 }
@@ -35,9 +40,13 @@ export async function prepareImages(
     total: 0,
     local: 0,
     remote: 0,
+    remoteLoaded: 0,
+    remotePlaceholder: 0,
     placeholder: 0,
     missing: 0,
   };
+  const remoteTasks: Array<Promise<void>> = [];
+  const remoteDeadline = performance.now() + REMOTE_PRELOAD_TIMEOUT_MS;
   const article = document.querySelector<HTMLElement>(".markdown-body");
   if (article === null) {
     return stats;
@@ -80,9 +89,18 @@ export async function prepareImages(
         }
         break;
       case "remote":
-        // 远程图片由后续提交接入预加载与固定占位；暂按浏览器默认行为加载。
         stats.remote += 1;
-        img.loading = isInViewport(img) ? "eager" : "lazy";
+        img.loading = "eager";
+        img.decoding = "async";
+        remoteTasks.push(
+          prepareRemoteImage(img, remoteDeadline).then((outcome) => {
+            if (outcome === "loaded") {
+              stats.remoteLoaded += 1;
+            } else {
+              stats.remotePlaceholder += 1;
+            }
+          }),
+        );
         break;
       default:
         decorateMissing(img, img.alt);
@@ -90,13 +108,72 @@ export async function prepareImages(
     }
   }
 
-  for (const frame of Array.from(article.querySelectorAll(".image-frame"))) {
-    stats.placeholder += 1;
-    void frame;
+  await Promise.allSettled([...loads, ...remoteTasks]);
+
+  // 远程超时/未知尺寸在异步阶段才生成占位盒，统计放在等待之后。
+  stats.placeholder = article.querySelectorAll(".image-frame").length;
+  return stats;
+}
+
+/**
+ * 远程图片：在统一截止时间前等待加载，成功后写 width/height 预留高度；
+ * 失败则显示 alt 占位，超时/未完成则套固定比例占位盒（后续加载不改变高度）。
+ */
+async function prepareRemoteImage(
+  img: HTMLImageElement,
+  deadline: number,
+): Promise<"loaded" | "failed" | "timeout"> {
+  const outcome = await waitForRemote(img, deadline);
+
+  if (outcome === "loaded") {
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      img.setAttribute("width", String(img.naturalWidth));
+      img.setAttribute("height", String(img.naturalHeight));
+    }
+    await img.decode().catch(() => {
+      // 解码失败保留默认渲染
+    });
+    return "loaded";
   }
 
-  await Promise.allSettled(loads);
-  return stats;
+  if (outcome === "failed") {
+    decorateMissing(img, img.alt);
+    return "failed";
+  }
+
+  wrapImageFrame(img);
+  return "timeout";
+}
+
+function waitForRemote(
+  img: HTMLImageElement,
+  deadline: number,
+): Promise<"loaded" | "failed" | "timeout"> {
+  if (img.complete) {
+    return Promise.resolve(img.naturalWidth > 0 ? "loaded" : "failed");
+  }
+
+  const remainingMs = Math.max(0, deadline - performance.now());
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (outcome: "loaded" | "failed" | "timeout"): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      img.removeEventListener("load", handleLoad);
+      img.removeEventListener("error", handleError);
+      resolve(outcome);
+    };
+
+    const handleLoad = (): void => settle("loaded");
+    const handleError = (): void => settle("failed");
+
+    img.addEventListener("load", handleLoad);
+    img.addEventListener("error", handleError);
+    window.setTimeout(() => settle("timeout"), remainingMs);
+  });
 }
 
 function prepareLocalImage(img: HTMLImageElement, resource: ImageResource): void {
