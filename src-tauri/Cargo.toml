@@ -18,6 +18,8 @@ serde_json = "1"
 thiserror = "2"
 # 需求指定解析器。关掉默认特性（CLI 依赖与 onig C 库），只保留核心解析/渲染。
 comrak = { version = "0.56", default-features = false }
+# HTML 白名单净化（安全硬要求），基于 html5ever 的标准 sanitizer。
+ammonia = "4.2"
 
 [profile.dev]
 incremental = true

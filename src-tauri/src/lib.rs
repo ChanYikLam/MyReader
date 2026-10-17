@@ -4,6 +4,7 @@ pub mod diagnostics;
 pub mod error;
 pub mod fs;
 pub mod parser;
+pub mod sanitize;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
