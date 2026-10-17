@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import { renderDocument, renderError } from "./document";
+import { prepareImages } from "./images";
 import { openPath, pickFile } from "./ipc";
 import { toAppErrorPayload } from "./types";
 import type { AppErrorPayload } from "./types";
@@ -18,6 +19,7 @@ export async function openDocument(path: string): Promise<void> {
   try {
     const payload = await openPath(path);
     renderDocument(payload);
+    void prepareImages(payload);
   } catch (error) {
     renderError(toAppErrorPayload(error), {
       onOpenFile: openFileAction(),

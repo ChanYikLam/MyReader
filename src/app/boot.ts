@@ -1,5 +1,6 @@
 import { renderDocument, renderError, renderWelcome } from "./document";
 import { installHighlightStyles } from "./highlight";
+import { prepareImages } from "./images";
 import { installLinkHandler } from "./links";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
 import {
@@ -115,6 +116,8 @@ export async function boot(): Promise<void> {
 
     if (startup.initialDocument !== null) {
       renderDocument(startup.initialDocument);
+      const imageStats = await prepareImages(startup.initialDocument);
+      reportBootEvent("images-ready", elapsedMs(), JSON.stringify(imageStats));
       reportBootEvent(
         "content-ready",
         elapsedMs(),

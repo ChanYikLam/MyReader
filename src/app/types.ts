@@ -13,11 +13,24 @@ export interface LoadTimings {
   totalMs: number;
 }
 
+export type ImageKind = "local" | "remote" | "unsupported";
+
+/** 与 src-tauri/src/media.rs::ImageResource 对应。 */
+export interface ImageResource {
+  src: string;
+  kind: ImageKind;
+  path: string | null;
+  exists: boolean;
+  width: number | null;
+  height: number | null;
+}
+
 export interface DocumentPayload {
   path: string;
   fileName: string;
   html: string;
   headings: Heading[];
+  images: ImageResource[];
   sizeBytes: number;
   timings: LoadTimings;
 }
