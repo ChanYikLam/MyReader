@@ -1,10 +1,13 @@
 pub mod boot;
 pub mod commands;
 pub mod diagnostics;
+pub mod document;
 pub mod error;
 pub mod fs;
 pub mod parser;
 pub mod sanitize;
+#[cfg(test)]
+pub mod test_support;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,6 +23,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::bootstrap,
+            commands::open_path,
             commands::reveal_window,
             commands::report_boot_event,
         ])

@@ -1,8 +1,10 @@
 use comrak::nodes::{AstNode, NodeValue};
 use comrak::{format_html, parse_document, Anchorizer, Arena, Options};
+use serde::Serialize;
 
 /// 一个标题的大纲条目。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Heading {
     /// 标题级别（1–6）。
     pub level: u8,

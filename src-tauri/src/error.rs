@@ -28,6 +28,9 @@ pub enum AppError {
         #[source]
         source: std::io::Error,
     },
+
+    #[error("内部错误")]
+    Internal { detail: String },
 }
 
 impl AppError {
@@ -40,12 +43,14 @@ impl AppError {
             Self::UnsupportedType { .. } => "unsupported_type",
             Self::NotAFile { .. } => "not_a_file",
             Self::Io { .. } => "io_error",
+            Self::Internal { .. } => "internal",
         }
     }
 
     fn detail(&self) -> Option<String> {
         match self {
             Self::Io { source, .. } => Some(source.to_string()),
+            Self::Internal { detail } => Some(detail.clone()),
             _ => None,
         }
     }

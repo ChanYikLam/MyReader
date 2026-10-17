@@ -117,51 +117,13 @@ fn decode_text(mut bytes: Vec<u8>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-    use std::path::{Path, PathBuf};
-
     use super::*;
-
-    /// 测试用临时目录，Drop 时清理。
-    struct TempDir(PathBuf);
-
-    impl TempDir {
-        fn new() -> Self {
-            let unique = format!(
-                "myreader-test-{}-{}",
-                std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_nanos())
-                    .unwrap_or_default()
-            );
-            let path = std::env::temp_dir().join(unique);
-            std::fs::create_dir_all(&path).expect("创建测试临时目录");
-            Self(path)
-        }
-
-        fn path(&self) -> &Path {
-            &self.0
-        }
-    }
-
-    impl Drop for TempDir {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
-
-    fn write_file(dir: &TempDir, name: &str, bytes: &[u8]) -> PathBuf {
-        let path = dir.path().join(name);
-        let mut file = std::fs::File::create(&path).expect("创建测试文件");
-        file.write_all(bytes).expect("写入测试文件");
-        path
-    }
+    use crate::test_support::TempDir;
 
     #[test]
     fn loads_utf8_file() {
         let dir = TempDir::new();
-        let path = write_file(&dir, "a.md", "# 标题\n正文".as_bytes());
+        let path = dir.write_file("a.md", "# 标题\n正文".as_bytes());
 
         let loaded = load_markdown_file(&path).expect("应读取成功");
         assert_eq!(loaded.text, "# 标题\n正文");
@@ -174,7 +136,7 @@ mod tests {
         let dir = TempDir::new();
         let mut bytes = vec![0xEF, 0xBB, 0xBF];
         bytes.extend_from_slice("hello".as_bytes());
-        let path = write_file(&dir, "bom.md", &bytes);
+        let path = dir.write_file("bom.md", &bytes);
 
         let loaded = load_markdown_file(&path).expect("应读取成功");
         assert_eq!(loaded.text, "hello");
@@ -183,7 +145,7 @@ mod tests {
     #[test]
     fn lossy_decodes_invalid_utf8() {
         let dir = TempDir::new();
-        let path = write_file(&dir, "gbk.md", &[0x61, 0xFF, 0x62]);
+        let path = dir.write_file("gbk.md", &[0x61, 0xFF, 0x62]);
 
         let loaded = load_markdown_file(&path).expect("应读取成功");
         assert!(loaded.text.starts_with('a'));
@@ -194,7 +156,7 @@ mod tests {
     #[test]
     fn rejects_binary_file() {
         let dir = TempDir::new();
-        let path = write_file(&dir, "bin.md", &[0x00, 0x01, 0x02, 0x03]);
+        let path = dir.write_file("bin.md", &[0x00, 0x01, 0x02, 0x03]);
 
         let error = load_markdown_file(&path).expect_err("二进制文件应被拒绝");
         assert_eq!(error.code(), "binary_file");
@@ -203,7 +165,7 @@ mod tests {
     #[test]
     fn rejects_unsupported_extension() {
         let dir = TempDir::new();
-        let path = write_file(&dir, "doc.pdf", b"hello");
+        let path = dir.write_file("doc.pdf", b"hello");
 
         let error = load_markdown_file(&path).expect_err("后缀不在白名单应被拒绝");
         assert_eq!(error.code(), "unsupported_type");
@@ -212,7 +174,7 @@ mod tests {
     #[test]
     fn accepts_uppercase_extension() {
         let dir = TempDir::new();
-        let path = write_file(&dir, "README.MD", b"hello");
+        let path = dir.write_file("README.MD", b"hello");
 
         let loaded = load_markdown_file(&path).expect("大写后缀应可用");
         assert_eq!(loaded.text, "hello");
@@ -221,7 +183,7 @@ mod tests {
     #[test]
     fn accepts_txt_extension() {
         let dir = TempDir::new();
-        let path = write_file(&dir, "notes.txt", b"plain");
+        let path = dir.write_file("notes.txt", b"plain");
 
         let loaded = load_markdown_file(&path).expect("txt 应可用");
         assert_eq!(loaded.text, "plain");
