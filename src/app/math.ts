@@ -59,7 +59,9 @@ export function renderMath(article: HTMLElement): MathRenderStats {
       stats.inline += 1;
     }
 
-    const wrapper = document.createElement(displayMode ? "div" : "span");
+    // 注意：display 模式也用 <span>（CSS 设 display:block），
+    // 否则在段落 <p> 内插入 <div> 属于非法嵌套，可能被浏览器重排。
+    const wrapper = document.createElement("span");
     wrapper.className = displayMode ? "math-display" : "math-inline";
 
     try {
