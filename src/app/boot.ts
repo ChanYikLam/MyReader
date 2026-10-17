@@ -2,12 +2,15 @@ import { renderDocument, renderError, renderWelcome } from "./document";
 import { installHighlightStyles } from "./highlight";
 import { prepareImages } from "./images";
 import { renderMath, warmUpMathFonts } from "./math";
+import { buildSidebar, clearSidebar, installSidebarListener } from "./outline";
+import { installFontSizeListener } from "./typography";
 import { installLinkHandler } from "./links";
 import { installThemeListener } from "./theme";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
 import {
   installDragDropListener,
   installOpenFileListeners,
+  openDocument,
   openFileAction,
 } from "./open";
 import { installRevealWatchdog, requestReveal } from "./reveal";
@@ -100,6 +103,8 @@ export async function boot(): Promise<void> {
   installRevealWatchdog();
   installLinkHandler();
   installThemeListener();
+  installFontSizeListener();
+  installSidebarListener();
 
   void probeAnimationFrames(2, RAF_PROBE_TIMEOUT_MS).then((result) => {
     reportBootEvent("raf-probe", elapsedMs(), JSON.stringify(result));
@@ -119,6 +124,7 @@ export async function boot(): Promise<void> {
 
     if (startup.initialDocument !== null) {
       const article = renderDocument(startup.initialDocument);
+      buildSidebar(startup.initialDocument);
 
       // 全部公式在 reveal 前同步渲染（SPEC §9.3 决策）：
       // 高度确定 → 滚动恢复精确、之后滚动条长度不跳变。
@@ -141,11 +147,21 @@ export async function boot(): Promise<void> {
         }),
       );
     } else {
-      renderWelcome({ onOpenFile: openFileAction() });
+      clearSidebar();
+      renderWelcome(
+        {
+          onOpenFile: openFileAction(),
+          onOpenRecent: (path) => {
+            void openDocument(path);
+          },
+        },
+        startup.recent,
+      );
       reportBootEvent("content-ready", elapsedMs(), JSON.stringify({ welcome: true }));
     }
   } catch (error) {
     const payload = toAppErrorPayload(error);
+    clearSidebar();
     renderError(payload, { onOpenFile: openFileAction() });
     reportBootEvent("content-error", elapsedMs(), JSON.stringify(payload));
   }

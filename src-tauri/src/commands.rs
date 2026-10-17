@@ -80,8 +80,9 @@ pub async fn open_path(app: tauri::AppHandle, path: String) -> Result<DocumentPa
 /// 文档加载成功后的收尾：滚动位置记忆、最近列表、图片 asset scope。
 fn finish_document_load(app: &tauri::AppHandle, document: &mut DocumentPayload) {
     document.saved_scroll = settings::load_scroll(app, &document.path);
-    if let Err(error) = settings::push_recent(app, &document.path, &document.file_name) {
-        diagnostics::boot_log(&format!("recent-save-error detail={error}"));
+    match settings::push_recent(app, &document.path, &document.file_name) {
+        Ok(_) => crate::menu::rebuild(app),
+        Err(error) => diagnostics::boot_log(&format!("recent-save-error detail={error}")),
     }
     register_image_scopes(app, document);
 }

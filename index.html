@@ -77,6 +77,32 @@
         -webkit-font-smoothing: antialiased;
         text-rendering: optimizeLegibility;
       }
+      /* 阅读布局骨架：侧栏 + 正文（首帧关键 CSS，内联避免 FOUC） */
+      .app-shell {
+        display: flex;
+        align-items: flex-start;
+        min-height: 100%;
+      }
+      .sidebar {
+        position: sticky;
+        top: 0;
+        flex: 0 0 260px;
+        height: 100vh;
+        padding: 56px 14px 40px;
+        overflow-y: auto;
+        background: var(--bg);
+        border-right: 1px solid var(--border);
+      }
+      html[data-sidebar="closed"] .sidebar {
+        display: none;
+      }
+      .content-root {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: var(--content-width);
+        margin: 0 auto;
+        padding: 56px 40px 120px;
+      }
     </style>
   </head>
   <body>

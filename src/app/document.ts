@@ -1,11 +1,12 @@
 import { setWindowTitle } from "./ipc";
-import type { AppErrorPayload, DocumentPayload } from "./types";
+import type { AppErrorPayload, DocumentPayload, RecentFile } from "./types";
 
 const APP_NAME = "MyReader";
 
-/** 视图上可用的操作（目前只有「打开文件…」）。 */
+/** 视图上可用的操作。 */
 export interface DocumentViewActions {
   onOpenFile?: () => void;
+  onOpenRecent?: (path: string) => void;
 }
 
 function requireContentRoot(): HTMLElement {
@@ -59,8 +60,11 @@ export function renderDocument(payload: DocumentPayload): HTMLElement {
   return article;
 }
 
-/** 无文件启动时的欢迎页（SPEC §18 A2）。 */
-export function renderWelcome(actions: DocumentViewActions = {}): void {
+/** 无文件启动时的欢迎页（含最近打开列表，SPEC §18 A2）。 */
+export function renderWelcome(
+  actions: DocumentViewActions = {},
+  recent: RecentFile[] = [],
+): void {
   const root = requireContentRoot();
 
   const section = document.createElement("section");
@@ -85,8 +89,50 @@ export function renderWelcome(actions: DocumentViewActions = {}): void {
     section.append(button);
   }
 
+  const recentSection = createRecentSection(recent, actions);
+  if (recentSection !== null) {
+    section.append(recentSection);
+  }
+
   root.replaceChildren(section);
   applyWindowTitle(null);
+}
+
+/** 最近打开列表（最多 10 条，点击直接打开）。 */
+function createRecentSection(
+  recent: RecentFile[],
+  actions: DocumentViewActions,
+): HTMLElement | null {
+  if (recent.length === 0 || actions.onOpenRecent === undefined) {
+    return null;
+  }
+
+  const section = document.createElement("section");
+  section.className = "welcome-recent";
+
+  const heading = document.createElement("h2");
+  heading.className = "welcome-recent-title";
+  heading.textContent = "最近打开";
+
+  const list = document.createElement("ul");
+  list.className = "recent-list";
+
+  for (const file of recent) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "recent-item";
+    button.textContent = file.name;
+    button.title = file.path;
+    button.addEventListener("click", () => {
+      actions.onOpenRecent?.(file.path);
+    });
+    item.append(button);
+    list.append(item);
+  }
+
+  section.append(heading, list);
+  return section;
 }
 
 /** 错误页：启动失败/文件打不开时展示，窗口仍会正常显示（SPEC §9.6）。 */

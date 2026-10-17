@@ -53,6 +53,11 @@ export async function revealWindow(backgroundTheme: string): Promise<void> {
   await invoke("reveal_window", { backgroundTheme });
 }
 
+/** 持久化侧栏开合状态。 */
+export async function setSidebarOpen(open: boolean): Promise<void> {
+  await invoke("set_sidebar_open", { open });
+}
+
 /** 运行期主题切换时同步原生窗口背景色。 */
 export async function setWindowBackground(theme: string): Promise<void> {
   await invoke("set_window_background", { theme });

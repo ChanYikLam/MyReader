@@ -4,6 +4,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { renderDocument, renderError } from "./document";
 import { prepareImages } from "./images";
 import { renderMath, warmUpMathFonts } from "./math";
+import { buildSidebar } from "./outline";
 import { openPath, pickFile } from "./ipc";
 import { toAppErrorPayload } from "./types";
 import type { AppErrorPayload } from "./types";
@@ -20,6 +21,7 @@ export async function openDocument(path: string): Promise<void> {
   try {
     const payload = await openPath(path);
     const article = renderDocument(payload);
+    buildSidebar(payload);
     // 同步渲染公式：同一任务内替换 DOM，不会出现 LaTeX 原文中间帧。
     const mathStats = renderMath(article);
     if (mathStats.total > 0) {

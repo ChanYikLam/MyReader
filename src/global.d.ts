@@ -2,6 +2,8 @@
 interface BootState {
   themeMode: "system" | "light" | "dark";
   fontSize: number;
+  /** 侧栏开合；null/undefined = 未手动设置，按窗口宽度决定默认值。 */
+  sidebarOpen?: boolean | null;
 }
 
 interface Window {
