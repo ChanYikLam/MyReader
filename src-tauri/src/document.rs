@@ -52,13 +52,23 @@ pub fn load_document(path: &Path) -> Result<DocumentPayload, AppError> {
     let html = sanitize::sanitize_html(&rendered.html);
     let sanitize_ms = elapsed_ms(sanitize_started);
 
+    let media_started = std::time::Instant::now();
     let images = media::resolve_images(&loaded.path, &rendered.images);
+    let media_ms = elapsed_ms(media_started);
 
     let file_name = loaded
         .path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|| loaded.path.display().to_string());
+
+    let total_ms = elapsed_ms(total_started);
+
+    // 启动诊断：Rust 侧文档管线的分阶段耗时（SPEC §9.9/§14）。
+    crate::diagnostics::boot_log(&format!(
+        "document-loaded read_ms={read_ms} parse_ms={parse_ms} sanitize_ms={sanitize_ms} \
+         media_ms={media_ms} total_ms={total_ms}"
+    ));
 
     Ok(DocumentPayload {
         path: loaded.path.display().to_string(),
