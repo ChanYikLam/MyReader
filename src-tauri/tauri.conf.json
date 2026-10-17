@@ -20,10 +20,16 @@
         "minHeight": 400,
         "resizable": true,
         "fullscreen": false,
-        "visible": true,
+        "visible": false,
+        "create": false,
+        "backgroundThrottling": "disabled",
         "dragDropEnabled": true
       }
-    ]
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http: https: data:; font-src 'self' data:; connect-src ipc: http://ipc.localhost",
+      "devCsp": "default-src 'self' http://localhost:1420; script-src 'self' http://localhost:1420 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' http://localhost:1420; img-src 'self' asset: http: https: data:; font-src 'self' data:; connect-src ipc: http://ipc.localhost ws://localhost:1420 http://localhost:1420"
+    }
   },
   "bundle": {
     "active": true,

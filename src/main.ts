@@ -1,18 +1,9 @@
 import "./styles/app.css";
+import { boot } from "./app/boot";
+import { requestReveal } from "./app/reveal";
 
-/** 应用外壳的最小引导：后续里程碑在此接入文档渲染与首帧就绪流程。 */
-function bootstrapShell(): void {
-  const app = document.querySelector<HTMLElement>("#app");
-  if (app === null) {
-    throw new Error("缺少 #app 容器");
-  }
-
-  app.dataset.state = "ready";
-
-  const status = document.querySelector<HTMLElement>("#boot-status");
-  if (status !== null) {
-    status.textContent = "工程骨架已就绪";
-  }
-}
-
-bootstrapShell();
+void boot().catch((error: unknown) => {
+  console.error("启动流程异常", error);
+  // 启动异常也要让窗口出现，由错误页/骨架承载信息（SPEC §9.6）。
+  requestReveal("boot-error");
+});

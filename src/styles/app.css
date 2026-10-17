@@ -1,27 +1,7 @@
-/* M1 骨架基础样式；主题变量体系在后续提交中扩展（见 SPEC §10）。 */
-
-:root {
-  color-scheme: light dark;
-  --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
-    "Helvetica Neue", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
+/* 应用外壳布局；关键主题变量与基础样式内联在 index.html 中。 */
 
 * {
   box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-}
-
-body {
-  font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
 .app-shell {
@@ -29,13 +9,13 @@ body {
 }
 
 .content-root {
-  max-width: 760px;
+  max-width: var(--content-width);
   margin: 0 auto;
   padding: 48px 32px;
 }
 
 .boot-status {
   margin: 0;
-  font-size: 15px;
-  color: #6e7781;
+  font-size: calc(var(--content-font-size) * 0.88);
+  color: var(--fg-muted);
 }
