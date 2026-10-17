@@ -1,8 +1,10 @@
 import { renderDocument, renderError, renderWelcome } from "./document";
+import type { DocumentPayload } from "./types";
 import { installHighlightStyles } from "./highlight";
 import { prepareImages } from "./images";
 import { renderMath, warmUpMathFonts } from "./math";
 import { buildSidebar, clearSidebar, installSidebarListener } from "./outline";
+import { installScrollSaver, restoreScrollForDocument } from "./scroll";
 import { installFontSizeListener } from "./typography";
 import { installLinkHandler } from "./links";
 import { installThemeListener } from "./theme";
@@ -118,9 +120,12 @@ export async function boot(): Promise<void> {
     reportBootEvent("open-file-listener-error", elapsedMs(), String(error));
   }
 
+  let startupDocument: DocumentPayload | null = null;
+
   try {
     const startup = await fetchBootstrap();
     installHighlightStyles(startup.highlightCss);
+    startupDocument = startup.initialDocument;
 
     if (startup.initialDocument !== null) {
       const article = renderDocument(startup.initialDocument);
@@ -169,6 +174,20 @@ export async function boot(): Promise<void> {
   const fontsProbe = await probeFontsReady(FONTS_TIMEOUT_MS);
   reportBootEvent("fonts-probe", elapsedMs(), JSON.stringify(fontsProbe));
 
+  // 布局已稳定（公式/图片/字体全部就绪）后同步恢复滚动位置，再显示窗口。
+  if (startupDocument !== null) {
+    restoreScrollForDocument(startupDocument);
+    reportBootEvent(
+      "scroll-restored",
+      elapsedMs(),
+      JSON.stringify({ scrollY: Math.round(window.scrollY) }),
+    );
+  }
+
   document.documentElement.dataset.ready = "true";
   requestReveal("boot");
+
+  if (startupDocument !== null) {
+    installScrollSaver(startupDocument);
+  }
 }

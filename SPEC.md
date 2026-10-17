@@ -346,14 +346,17 @@ katex.renderToString(tex, {
 
 ```jsonc
 {
-  "version": 1,
-  "theme": { "mode": "system" },                       // 主题偏好
-  "typography": { "fontSize": 17 },                    // 13–24，Cmd+/- 步进 1，Cmd+0 复位
-  "ui": { "sidebarOpen": true },                       // 侧栏开合
-  "recent": [ { "path": "/abs/a.md", "name": "a.md", "openedAt": 1730000000 } ], // 去重，最多 10
-  "scroll": { "/abs/a.md": { "top": 1234, "docHeight": 5600, "viewportWidth": 1000 } }
+  "theme.mode": "system",                              // 主题偏好
+  "typography.fontSize": 17,                           // 13–24，Cmd+/- 步进 1，Cmd+0 复位
+  "ui.sidebarOpen": true,                              // 侧栏开合（缺省=按窗口宽度自动）
+  "recent": [ { "path": "/abs/a.md", "name": "a.md", "openedAt": 1730000000000 } ], // 去重，最多 10
+  "scroll": {
+    "/abs/a.md": { "top": 1234, "docHeight": 5600, "viewportWidth": 1000, "updatedAt": 1730000000000 }
+  }
 }
 ```
+> 按文件路径持久化；`scroll` 超过 200 条按 `updatedAt` LRU 淘汰。窗口大小/位置由
+> tauri-plugin-window-state 独立文件保存（多显示器/缩放边界交给插件）。
 
 - 滚动位置：按文件绝对路径存储 `top`（首选）与 `docHeight/viewportWidth`（窗口宽度或文档高度变化过大时按比例回退）。文件数超过 200 条时按 `openedAt` LRU 淘汰（防无限增长）。
 - 窗口大小/位置：`tauri-plugin-window-state`（独立文件）；插件在 `on_window_ready` 恢复，兼容手动创建窗口。若与 `create:false` 创建方式冲突，降级为 store 内自存 bounds（手写 clamp 到可见屏幕）。

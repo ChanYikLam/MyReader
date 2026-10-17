@@ -53,6 +53,16 @@ export async function revealWindow(backgroundTheme: string): Promise<void> {
   await invoke("reveal_window", { backgroundTheme });
 }
 
+/** 保存当前文档滚动位置（store 按文件路径记忆）。 */
+export async function saveScroll(
+  path: string,
+  top: number,
+  docHeight: number,
+  viewportWidth: number,
+): Promise<void> {
+  await invoke("save_scroll", { path, top, docHeight, viewportWidth });
+}
+
 /** 持久化侧栏开合状态。 */
 export async function setSidebarOpen(open: boolean): Promise<void> {
   await invoke("set_sidebar_open", { open });

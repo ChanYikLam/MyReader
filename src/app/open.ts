@@ -5,6 +5,7 @@ import { renderDocument, renderError } from "./document";
 import { prepareImages } from "./images";
 import { renderMath, warmUpMathFonts } from "./math";
 import { buildSidebar } from "./outline";
+import { restoreScrollForDocument, saveCurrentScrollNow } from "./scroll";
 import { openPath, pickFile } from "./ipc";
 import { toAppErrorPayload } from "./types";
 import type { AppErrorPayload } from "./types";
@@ -18,6 +19,9 @@ export function openFileAction(): () => void {
 
 /** 打开并渲染一个文件；失败时显示错误页（旧内容保持可见，SPEC §9.7）。 */
 export async function openDocument(path: string): Promise<void> {
+  // 离开当前文档前先落盘它的滚动位置。
+  saveCurrentScrollNow();
+
   try {
     const payload = await openPath(path);
     const article = renderDocument(payload);
@@ -28,6 +32,7 @@ export async function openDocument(path: string): Promise<void> {
       void warmUpMathFonts();
     }
     void prepareImages(payload);
+    restoreScrollForDocument(payload);
   } catch (error) {
     renderError(toAppErrorPayload(error), {
       onOpenFile: openFileAction(),

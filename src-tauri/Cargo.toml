@@ -35,6 +35,8 @@ tauri-plugin-dialog = "2.8"
 tauri-plugin-opener = "2.7"
 # 需求指定状态持久化：主题偏好/字号/滚动位置/最近文件（Rust 侧读写）。
 tauri-plugin-store = "2.5"
+# 窗口大小/位置记忆：多显示器、缩放、最大化等边界由插件处理，手写易错。
+tauri-plugin-window-state = "2.5"
 
 [profile.dev]
 incremental = true
