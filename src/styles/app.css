@@ -11,11 +11,71 @@
 .content-root {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 48px 32px;
+  padding: 56px 40px 120px;
 }
 
 .boot-status {
   margin: 0;
   font-size: calc(var(--content-font-size) * 0.88);
   color: var(--fg-muted);
+}
+
+/* 欢迎页（无文件启动，SPEC §18 A2） */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 56vh;
+  text-align: center;
+}
+
+.welcome-title {
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.welcome-subtitle {
+  margin: 0.7em 0 0;
+  font-size: 1.02rem;
+  color: var(--fg-muted);
+}
+
+.welcome-hint {
+  margin: 2.6em 0 0;
+  font-size: 0.92rem;
+  color: var(--fg-muted);
+}
+
+/* 错误页（启动失败/文件打不开，SPEC §9.6） */
+.error-page {
+  padding-top: 7vh;
+}
+
+.error-page h1 {
+  margin: 0 0 0.7em;
+  font-size: 1.45rem;
+  font-weight: 650;
+}
+
+.error-message {
+  margin: 0;
+  font-size: 1.02rem;
+  color: var(--fg);
+}
+
+.error-detail {
+  margin: 1.4em 0 0;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }

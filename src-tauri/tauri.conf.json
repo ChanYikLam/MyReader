@@ -40,6 +40,22 @@
       "icons/128x128@2x.png",
       "icons/icon.icns"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown", "mdown"],
+        "name": "Markdown Document",
+        "description": "Markdown 文档",
+        "role": "Viewer",
+        "mimeType": "text/markdown"
+      },
+      {
+        "ext": ["txt"],
+        "name": "Plain Text Document",
+        "description": "纯文本文档",
+        "role": "Viewer",
+        "mimeType": "text/plain"
+      }
+    ],
     "macOS": {
       "minimumSystemVersion": "11.0"
     }

@@ -1,7 +1,10 @@
-import { reportBootEvent } from "./ipc";
+import { renderDocument, renderError, renderWelcome } from "./document";
+import { fetchBootstrap, reportBootEvent } from "./ipc";
+import { installOpenFileListener } from "./open";
 import { installRevealWatchdog, requestReveal } from "./reveal";
+import { toAppErrorPayload } from "./types";
 
-/** rAF 探针超时：隐藏窗口若不触发 rAF，用超时兜底继续启动流程。 */
+/** rAF 探针超时：隐藏窗口下 rAF 会被节流（实测不触发），仅作后台诊断。 */
 const RAF_PROBE_TIMEOUT_MS = 500;
 /** 字体就绪等待上限；超时只记录，不阻塞首帧（看门狗仍兜底）。 */
 const FONTS_TIMEOUT_MS = 2000;
@@ -11,9 +14,8 @@ function elapsedMs(): number {
 }
 
 /**
- * 统计在隐藏窗口下 rAF 是否能正常触发。
- * 目的：验证「visible:false + backgroundThrottling:disabled」时布局/合成链路可用，
- * 结论记录到 boot 日志（SPEC §19 风险表第一种风险）。
+ * 统计在隐藏窗口下 rAF 是否能正常触发（后台诊断，不阻塞启动）。
+ * 结论见 SPEC §19 风险表：WebKit 在不可见窗口下不调度 rAF。
  */
 async function probeAnimationFrames(
   targetFrames: number,
@@ -61,10 +63,10 @@ async function probeFontsReady(
 }
 
 /**
- * 启动编排（M1 版本）。
+ * 启动编排（M1）：启动态校验 → 看门狗 → 内容渲染（文档/欢迎页/错误页）
+ * → 字体就绪 → 请求显示窗口。
  *
- * 当前只包含：启动态注入校验 → 看门狗 → rAF/字体探针 → 请求显示。
- * 文档渲染、公式、滚动恢复等就绪条件在后续里程碑加入（SPEC §9.3）。
+ * 后续里程碑在此追加：公式渲染、图片占位、滚动恢复、主题持久化（SPEC §9.3）。
  */
 export async function boot(): Promise<void> {
   const processStartedAt = window.__BOOT_STARTED_AT_MS__;
@@ -88,14 +90,43 @@ export async function boot(): Promise<void> {
 
   installRevealWatchdog();
 
-  // 实测结论（2026-10-17）：隐藏窗口下 rAF 被 WebKit 节流，不会触发。
-  // 因此 reveal 前的就绪判定不能依赖 rAF；该探针改为后台记录，不阻塞首帧。
   void probeAnimationFrames(2, RAF_PROBE_TIMEOUT_MS).then((result) => {
     reportBootEvent("raf-probe", elapsedMs(), JSON.stringify(result));
   });
 
+  // 必须先装监听：冷启动的文件关联事件可能先于 bootstrap 到达（SPEC §12）。
+  try {
+    await installOpenFileListener();
+  } catch (error) {
+    reportBootEvent("open-file-listener-error", elapsedMs(), String(error));
+  }
+
+  try {
+    const startup = await fetchBootstrap();
+    if (startup.initialDocument !== null) {
+      renderDocument(startup.initialDocument);
+      reportBootEvent(
+        "content-ready",
+        elapsedMs(),
+        JSON.stringify({
+          file: startup.initialDocument.fileName,
+          sizeBytes: startup.initialDocument.sizeBytes,
+          timings: startup.initialDocument.timings,
+        }),
+      );
+    } else {
+      renderWelcome();
+      reportBootEvent("content-ready", elapsedMs(), JSON.stringify({ welcome: true }));
+    }
+  } catch (error) {
+    const payload = toAppErrorPayload(error);
+    renderError(payload);
+    reportBootEvent("content-error", elapsedMs(), JSON.stringify(payload));
+  }
+
   const fontsProbe = await probeFontsReady(FONTS_TIMEOUT_MS);
   reportBootEvent("fonts-probe", elapsedMs(), JSON.stringify(fontsProbe));
 
+  document.documentElement.dataset.ready = "true";
   requestReveal("boot");
 }
