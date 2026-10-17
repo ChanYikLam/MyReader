@@ -168,3 +168,78 @@
 .markdown-body [id^="fn"] {
   scroll-margin-top: 24px;
 }
+
+/* 表格（含对齐，宽表格由 .table-scroll 横向滚动） */
+.markdown-body .table-scroll {
+  margin: 0 0 1.2em;
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+.markdown-body .table-scroll table {
+  margin: 0;
+}
+
+.markdown-body table {
+  width: 100%;
+  margin: 0 0 1.2em;
+  font-size: 0.95em;
+  border-collapse: collapse;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+
+.markdown-body th {
+  font-weight: 600;
+  background: var(--bg-muted);
+}
+
+.markdown-body th[align="center"],
+.markdown-body td[align="center"] {
+  text-align: center;
+}
+
+.markdown-body th[align="right"],
+.markdown-body td[align="right"] {
+  text-align: right;
+}
+
+/* 任务列表（只读 checkbox，comrak tasklist_classes） */
+.markdown-body .task-list {
+  padding-left: 1.4em;
+}
+
+.markdown-body .task-list-item {
+  list-style: none;
+}
+
+.markdown-body .task-list-item > input[type="checkbox"] {
+  margin: 0 0.5em 0 -1.3em;
+}
+
+/* 脚注 */
+.markdown-body .footnotes {
+  margin-top: 3em;
+  padding-top: 1em;
+  font-size: 0.9em;
+  color: var(--fg-muted);
+  border-top: 1px solid var(--border);
+}
+
+.markdown-body .footnotes > hr {
+  display: none;
+}
+
+.markdown-body .footnote-ref a,
+.markdown-body .footnote-backref {
+  text-decoration: none;
+}
+
+.markdown-body .footnote-ref {
+  font-size: 0.8em;
+}

@@ -49,6 +49,9 @@ export function renderDocument(payload: DocumentPayload): void {
   article.className = "markdown-body";
   article.innerHTML = payload.html;
 
+  // 宽表格横向滚动：在构建阶段包一层容器（窗口仍隐藏，无布局闪烁）。
+  wrapTables(article);
+
   root.replaceChildren(article);
   applyWindowTitle(payload.fileName);
 }
@@ -116,6 +119,16 @@ export function renderError(
 
   root.replaceChildren(section);
   applyWindowTitle(null);
+}
+
+/** 把表格包进横向滚动容器（需求「表格（带对齐）」）。 */
+function wrapTables(article: HTMLElement): void {
+  for (const table of Array.from(article.querySelectorAll("table"))) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "table-scroll";
+    table.replaceWith(wrapper);
+    wrapper.append(table);
+  }
 }
 
 function applyWindowTitle(fileName: string | null): void {
