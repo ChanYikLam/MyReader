@@ -1,0 +1,51 @@
+# ===== macOS =====
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# ===== Rust / Cargo =====
+# 构建产物（Cargo.lock 必须提交，不在此列出）
+target/
+src-tauri/target/
+**/target/
+**/*.rs.bk
+
+# ===== Tauri 自动生成 =====
+src-tauri/gen/schemas/
+
+# ===== Tauri 打包产物 =====
+*.app
+*.dmg
+*.pkg
+*.msi
+*.deb
+*.rpm
+*.AppImage
+
+# ===== Node / Vite =====
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+coverage/
+
+# ===== 日志 / 环境变量 =====
+*.log
+.env
+.env.*
+!.env.example
+
+# ===== IDE（按需忽略） =====
+.idea/
+.vscode/
+*.swp
+
+# ===== 本会话构建缓存（见 SPEC §17） =====
+.cargo-home/
+.npm-cache/
+
+# ===== 系统/临时文件 =====
+*.tmp
+*.orig
+*.rej
