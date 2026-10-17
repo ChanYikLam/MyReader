@@ -77,8 +77,17 @@ fn elapsed_ms(started: std::time::Instant) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use crate::test_support::TempDir;
+
+    /// 仓库根目录下的验收夹具（tests/fixtures/）。
+    fn fixture(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../tests/fixtures")
+            .join(name)
+    }
 
     #[test]
     fn loads_document_with_html_and_outline() {
@@ -121,5 +130,58 @@ mod tests {
 
         let error = load_document(&path).expect_err("应返回 AppError");
         assert_eq!(error.code(), "not_found");
+    }
+
+    #[test]
+    fn renders_basic_fixture() {
+        let document = load_document(&fixture("basic.md")).expect("夹具应能加载");
+
+        // 标题层级与大纲锚点
+        assert_eq!(document.headings.len(), 6);
+        assert_eq!(document.headings[0].level, 1);
+        assert_eq!(document.headings[0].text, "MyReader 功能验收");
+        assert_eq!(document.headings[5].level, 6);
+        for heading in &document.headings {
+            assert!(
+                document.html.contains(&format!("id=\"{}\"", heading.id)),
+                "HTML 缺少标题锚点 {}",
+                heading.id
+            );
+        }
+
+        // 行内元素
+        assert!(document.html.contains("<strong>粗体</strong>"));
+        assert!(document.html.contains("<em>斜体</em>"));
+        assert!(document.html.contains("<code>行内代码</code>"));
+        assert!(document.html.contains("href=\"https://example.com\""));
+
+        // 引用（含嵌套）与列表（含嵌套）
+        assert!(document.html.contains("<blockquote>"));
+        assert!(document.html.matches("<blockquote>").count() >= 2);
+        assert!(document.html.contains("<ol>"));
+        assert!(document.html.contains("<ul>"));
+
+        // 分隔线（ammonia 会按 HTML5 序列化为 <hr>）与代码块语言 class
+        // （未知语言回退为无高亮纯文本）
+        assert!(document.html.contains("<hr>"));
+        assert!(document.html.contains("language-rust"));
+        assert!(document.html.contains("language-python"));
+        assert!(document.html.contains("language-unknownlang"));
+        assert!(document.html.contains("unknown language should fall back"));
+    }
+
+    #[test]
+    fn renders_security_fixture_safely() {
+        let document = load_document(&fixture("security.md")).expect("夹具应能加载");
+
+        // 原始 HTML 以转义文本呈现，不产生真实标签
+        assert!(!document.html.contains("<script"));
+        assert!(document.html.contains("&lt;script&gt;"));
+        assert!(!document.html.contains("<img"));
+
+        // 危险协议被剥离，正常链接保留
+        assert!(!document.html.contains("href=\"javascript:"));
+        assert!(document.html.contains("href=\"https://example.com\""));
+        assert!(document.html.contains("javascript 链接"));
     }
 }
