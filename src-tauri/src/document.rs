@@ -230,6 +230,36 @@ mod tests {
     }
 
     #[test]
+    fn renders_math_fixture_source_nodes() {
+        let document = load_document(&fixture("math.md")).expect("夹具应能加载");
+
+        // 行内/块级公式都以源码文本节点交给前端 KaTeX
+        assert!(document.html.contains(r#"data-math-style="inline""#));
+        assert!(document.html.contains(r#"data-math-style="display""#));
+        assert!(document.html.contains("E = mc^2"));
+        assert!(document.html.contains("\\begin{pmatrix}"));
+        assert!(document.html.contains("\\begin{aligned}"));
+        assert!(document.html.contains("\\begin{cases}"));
+
+        // 代码域豁免
+        assert!(document.html.contains("<code>$x$</code>"));
+        assert!(document.html.contains("$y = 1 + 2$"));
+
+        // \$ 转义
+        assert!(document.html.contains("$5"));
+
+        // 非法公式源码原样透传；后续正文必须保留
+        assert!(document.html.contains("\\frac{1}"));
+        assert!(document.html.contains("后面的这段话必须正常显示"));
+
+        // trust:false 在 KaTeX 侧处理，源码节点仍需保留供前端渲染
+        assert!(document.html.contains("\\href{javascript:alert(1)}"));
+
+        let math_nodes = document.html.matches("data-math-style").count();
+        assert!(math_nodes >= 10, "公式节点数量异常: {math_nodes}");
+    }
+
+    #[test]
     fn renders_basic_fixture() {
         let document = load_document(&fixture("basic.md")).expect("夹具应能加载");
 
