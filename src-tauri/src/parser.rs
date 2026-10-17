@@ -75,6 +75,10 @@ fn build_options() -> Options<'static> {
     options.extension.footnotes = true; // 脚注
                                         // 给任务列表的 ul/li 加 task-list/task-list-item class，便于样式区分。
     options.render.tasklist_classes = true;
+
+    // 数学公式：$...$ 行内、$$...$$ 块级；Rust 侧只输出公式源码文本节点，
+    // 由前端 KaTeX 排版（第三方排版库，SPEC §7）。不开启 math_code 扩展。
+    options.extension.math_dollars = true;
     // 标题 id 由 comrak 生成（GFM 风格 slug + 去重），作为大纲跳转锚点。
     // 空前缀 = 纯 slug；与 collect_headings 中的 Anchorizer 保持一致。
     options.extension.header_id_prefix = Some(String::new());
@@ -254,6 +258,84 @@ mod tests {
         let rendered = render_markdown("~~删除线~~\n");
 
         assert!(rendered.html.contains("<del>删除线</del>"));
+    }
+
+    #[test]
+    fn renders_inline_math_source_node() {
+        let rendered = render_markdown("质能方程 $E = mc^2$ 结束。\n");
+
+        assert!(
+            rendered
+                .html
+                .contains(r#"<span data-math-style="inline">E = mc^2</span>"#),
+            "html={}",
+            rendered.html
+        );
+    }
+
+    #[test]
+    fn renders_display_math_source_node() {
+        let rendered = render_markdown("$$\n\\int_0^1 x \\, dx\n$$\n");
+
+        assert!(
+            rendered
+                .html
+                .contains(r#"<span data-math-style="display">"#),
+            "html={}",
+            rendered.html
+        );
+        assert!(rendered.html.contains("\\int_0^1 x"));
+    }
+
+    #[test]
+    fn math_delimiters_are_exempt_inside_code() {
+        let rendered = render_markdown("行内代码 `$x$` 与围栏代码块：\n\n```text\n$y = 1$\n```\n");
+
+        assert!(!rendered.html.contains("data-math-style"));
+        assert!(rendered.html.contains("<code>$x$</code>"));
+        assert!(rendered.html.contains("$y = 1$"));
+    }
+
+    #[test]
+    fn escaped_dollar_stays_literal() {
+        let rendered = render_markdown("价格是 \\$5 而不是公式。\n");
+
+        assert!(!rendered.html.contains("data-math-style"));
+        assert!(rendered.html.contains("$5"));
+    }
+
+    #[test]
+    fn invalid_latex_is_kept_as_math_source() {
+        // 公式合法性与排版由前端 KaTeX 负责（throwOnError:false 显示错误原文），
+        // Rust 侧只负责把源码原样交给前端，不能中断文档渲染。
+        let rendered = render_markdown("前 $\\frac{1}$ 后\n");
+
+        assert!(rendered.html.contains(r#"data-math-style="inline""#));
+        assert!(rendered.html.contains("\\frac{1}"));
+        assert!(rendered.html.contains("前"));
+        assert!(rendered.html.contains("后"));
+    }
+
+    #[test]
+    fn currency_dollar_sequence_is_not_forced_into_math() {
+        // 记录 comrak 的实际行为（已知限制：不做启发式修正，SPEC §7.1）。
+        let rendered = render_markdown("价格 \\$5 和 \\$6\n");
+
+        assert!(!rendered.html.contains("data-math-style"));
+        assert!(rendered.html.contains("$5"));
+        assert!(rendered.html.contains("$6"));
+    }
+
+    #[test]
+    fn currency_dollars_without_escape_follow_comrak_rules() {
+        // 已知限制（SPEC §7.1）：不对 `$5 和 $6` 这类文本做启发式修正，
+        // 记录 comrak 的实际识别结果；规则若随版本变化，本测试会显式失败提醒。
+        let rendered = render_markdown("价格 $5 和 $6\n");
+        assert!(
+            !rendered.html.contains("data-math-style"),
+            "comrak 规则变化，请复核公式边界文档: {}",
+            rendered.html
+        );
     }
 
     #[test]
