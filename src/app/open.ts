@@ -1,9 +1,10 @@
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
-import { renderDocument, renderError } from "./document";
+import { hasDocumentView, renderDocument, renderError } from "./document";
 import { prepareImages } from "./images";
 import { renderMath, warmUpMathFonts } from "./math";
+import { showToast } from "./toast";
 import { buildSidebar } from "./outline";
 import { restoreScrollForDocument, saveCurrentScrollNow } from "./scroll";
 import { openPath, pickFile } from "./ipc";
@@ -34,6 +35,11 @@ export async function openDocument(path: string): Promise<void> {
     void prepareImages(payload);
     restoreScrollForDocument(payload);
   } catch (error) {
+    // 已有文档时保留旧内容，只用提示条报告失败（SPEC §9.7）。
+    if (hasDocumentView()) {
+      showToast(`无法打开文件：${toAppErrorPayload(error).message}`);
+      return;
+    }
     renderError(toAppErrorPayload(error), {
       onOpenFile: openFileAction(),
     });
@@ -48,6 +54,11 @@ export async function promptOpenFile(): Promise<void> {
       await openDocument(path);
     }
   } catch (error) {
+    // 已有文档时保留旧内容，只用提示条报告失败（SPEC §9.7）。
+    if (hasDocumentView()) {
+      showToast(`无法打开文件：${toAppErrorPayload(error).message}`);
+      return;
+    }
     renderError(toAppErrorPayload(error), {
       onOpenFile: openFileAction(),
     });
@@ -76,6 +87,10 @@ export async function installOpenFileListeners(): Promise<void> {
   });
 
   await listen<AppErrorPayload>("open-error", (event) => {
+    if (hasDocumentView()) {
+      showToast(`无法打开文件：${event.payload.message}`);
+      return;
+    }
     renderError(event.payload, { onOpenFile: openFileAction() });
   });
 }

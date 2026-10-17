@@ -247,3 +247,30 @@ html[data-sidebar="closed"] .sidebar-toggle {
 .recent-item:hover {
   border-color: var(--border);
 }
+
+/* 顶部提示条（运行中打开失败等） */
+.toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  z-index: 50;
+  max-width: min(560px, calc(100vw - 48px));
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  color: #fff;
+  text-align: center;
+  pointer-events: none;
+  visibility: hidden;
+  background: rgb(209 36 47 / 92%);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+  opacity: 0;
+  transform: translateX(-50%) translateY(-6px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.toast.is-visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

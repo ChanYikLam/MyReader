@@ -60,6 +60,11 @@ export function renderDocument(payload: DocumentPayload): HTMLElement {
   return article;
 }
 
+/** 当前是否处于文档阅读视图（用于区分"首次加载失败"与"切换文件失败"）。 */
+export function hasDocumentView(): boolean {
+  return document.querySelector(".markdown-body") !== null;
+}
+
 /** 无文件启动时的欢迎页（含最近打开列表，SPEC §18 A2）。 */
 export function renderWelcome(
   actions: DocumentViewActions = {},
