@@ -1,4 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import { renderDocument, renderError } from "./document";
 import { openPath, pickFile } from "./ipc";
@@ -61,5 +62,31 @@ export async function installOpenFileListeners(): Promise<void> {
 
   await listen<AppErrorPayload>("open-error", (event) => {
     renderError(event.payload, { onOpenFile: openFileAction() });
+  });
+}
+
+let dragDropInstalled = false;
+
+/**
+ * 安装拖拽打开监听：把文件拖到窗口上即打开（多文件取第一个，
+ * 需求「打开文件」）。
+ *
+ * 注：Tauri 的原生拖放事件通过 webview 事件通道投递，
+ * 不触发浏览器默认的 HTML5 drop（dragDropEnabled=true）。
+ */
+export async function installDragDropListener(): Promise<void> {
+  if (dragDropInstalled) {
+    return;
+  }
+  dragDropInstalled = true;
+
+  await getCurrentWebview().onDragDropEvent((event) => {
+    if (event.payload.type !== "drop") {
+      return;
+    }
+    const [firstPath] = event.payload.paths;
+    if (firstPath !== undefined) {
+      void openDocument(firstPath);
+    }
   });
 }

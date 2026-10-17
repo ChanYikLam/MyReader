@@ -1,6 +1,10 @@
 import { renderDocument, renderError, renderWelcome } from "./document";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
-import { installOpenFileListeners, openFileAction } from "./open";
+import {
+  installDragDropListener,
+  installOpenFileListeners,
+  openFileAction,
+} from "./open";
 import { installRevealWatchdog, requestReveal } from "./reveal";
 import { toAppErrorPayload } from "./types";
 
@@ -97,6 +101,7 @@ export async function boot(): Promise<void> {
   // 必须先装监听：冷启动的文件关联事件可能先于 bootstrap 到达（SPEC §12）。
   try {
     await installOpenFileListeners();
+    await installDragDropListener();
   } catch (error) {
     reportBootEvent("open-file-listener-error", elapsedMs(), String(error));
   }
