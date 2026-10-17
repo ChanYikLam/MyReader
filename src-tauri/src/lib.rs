@@ -56,7 +56,11 @@ pub fn run() {
             menu::install(app.handle(), theme_mode)?;
             app.on_menu_event(menu::handle_event);
 
-            let boot_state = boot::BootState::new(theme_mode);
+            let boot_state = boot::BootState::new(
+                theme_mode,
+                settings::load_font_size(app.handle()),
+                settings::load_sidebar_open(app.handle()),
+            );
             boot::create_main_window(app.handle(), &boot_state, started_at_ms)?;
             Ok(())
         })
@@ -69,6 +73,8 @@ pub fn run() {
             commands::report_boot_event,
             commands::set_window_title,
             commands::set_window_background,
+            commands::set_sidebar_open,
+            commands::save_scroll,
         ])
         .build(tauri::generate_context!())
         .expect("MyReader 初始化失败");

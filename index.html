@@ -25,6 +25,12 @@
         if (typeof boot.fontSize === "number") {
           root.style.setProperty("--content-font-size", boot.fontSize + "px");
         }
+        // 侧栏：用户手动设置优先；否则宽窗口默认展开（SPEC §18 A3）。
+        var sidebarOpen = boot.sidebarOpen;
+        if (typeof sidebarOpen !== "boolean") {
+          sidebarOpen = window.innerWidth >= 900;
+        }
+        root.dataset.sidebar = sidebarOpen ? "open" : "closed";
       })();
     </script>
     <style>

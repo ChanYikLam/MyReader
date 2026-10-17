@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tauri::{AppHandle, WebviewWindowBuilder};
 
-use crate::settings::ThemeMode;
+use crate::settings::{self, ThemeMode};
 
 /// 前端在首帧前就需要的启动状态。
 ///
@@ -13,21 +13,25 @@ use crate::settings::ThemeMode;
 pub struct BootState {
     /// 主题模式：system / light / dark（来自 store，缺失时 system）。
     pub theme_mode: ThemeMode,
+    /// 正文字号（px，13–24，SPEC §18 A9）。
     pub font_size: u32,
+    /// 侧栏开合；None = 用户未手动设置，前端按窗口宽度决定默认值。
+    pub sidebar_open: Option<bool>,
 }
 
 impl BootState {
-    pub fn new(theme_mode: ThemeMode) -> Self {
+    pub fn new(theme_mode: ThemeMode, font_size: u32, sidebar_open: Option<bool>) -> Self {
         Self {
             theme_mode,
-            font_size: 17,
+            font_size: settings::clamp_font_size(font_size),
+            sidebar_open,
         }
     }
 }
 
 impl Default for BootState {
     fn default() -> Self {
-        Self::new(ThemeMode::System)
+        Self::new(ThemeMode::System, settings::DEFAULT_FONT_SIZE, None)
     }
 }
 
@@ -88,9 +92,11 @@ mod tests {
     /// 锁定注入前端的 JSON 契约（index.html 内联脚本读取 themeMode/fontSize）。
     #[test]
     fn boot_state_serializes_for_frontend() {
-        let value = serde_json::to_value(BootState::new(ThemeMode::Dark)).expect("可序列化");
+        let value = serde_json::to_value(BootState::new(ThemeMode::Dark, 19, Some(true)))
+            .expect("可序列化");
         assert_eq!(value["themeMode"], "dark");
-        assert_eq!(value["fontSize"], 17);
+        assert_eq!(value["fontSize"], 19);
+        assert_eq!(value["sidebarOpen"], true);
 
         let default_value = serde_json::to_value(BootState::default()).expect("可序列化");
         assert_eq!(default_value["themeMode"], "system");

@@ -10,6 +10,7 @@ use crate::error::AppError;
 use crate::file_dialog;
 use crate::highlight;
 use crate::media;
+use crate::settings::{self, RecentFile};
 use crate::state::StartupState;
 use crate::theme;
 
@@ -23,6 +24,8 @@ pub struct BootstrapPayload {
     pub initial_document: Option<DocumentPayload>,
     /// 明暗两套代码高亮 CSS（按 data-theme 作用域），首帧前注入 <head>。
     pub highlight_css: String,
+    /// 最近打开列表（欢迎页展示，最多 10 条）。
+    pub recent: Vec<RecentFile>,
 }
 
 /// 前端启动时调用一次，拿到首帧所需的全部数据。
@@ -47,13 +50,15 @@ pub async fn bootstrap(
         detail: error.to_string(),
     })??;
 
-    if let Some(document) = initial_document.as_ref() {
-        register_image_scopes(&app, document);
+    let mut initial_document = initial_document;
+    if let Some(document) = initial_document.as_mut() {
+        finish_document_load(&app, document);
     }
 
     Ok(BootstrapPayload {
         initial_document,
         highlight_css: highlight::theme_css().to_string(),
+        recent: settings::load_recent(&app),
     })
 }
 
@@ -67,8 +72,45 @@ pub async fn open_path(app: tauri::AppHandle, path: String) -> Result<DocumentPa
                 detail: error.to_string(),
             })??;
 
-    register_image_scopes(&app, &payload);
+    let mut payload = payload;
+    finish_document_load(&app, &mut payload);
     Ok(payload)
+}
+
+/// 文档加载成功后的收尾：滚动位置记忆、最近列表、图片 asset scope。
+fn finish_document_load(app: &tauri::AppHandle, document: &mut DocumentPayload) {
+    document.saved_scroll = settings::load_scroll(app, &document.path);
+    if let Err(error) = settings::push_recent(app, &document.path, &document.file_name) {
+        diagnostics::boot_log(&format!("recent-save-error detail={error}"));
+    }
+    register_image_scopes(app, document);
+}
+
+/// 侧栏开合持久化（首帧之外的用户操作由前端调用）。
+#[tauri::command]
+pub fn set_sidebar_open(app: tauri::AppHandle, open: bool) -> Result<(), AppError> {
+    settings::save_sidebar_open(&app, open)
+}
+
+/// 保存当前文档滚动位置（前端滚动 debounce 后调用）。
+#[tauri::command]
+pub fn save_scroll(
+    app: tauri::AppHandle,
+    path: String,
+    top: f64,
+    doc_height: f64,
+    viewport_width: f64,
+) -> Result<(), AppError> {
+    settings::save_scroll(
+        &app,
+        &path,
+        settings::ScrollPosition {
+            top,
+            doc_height,
+            viewport_width,
+            updated_at: 0,
+        },
+    )
 }
 
 /// 把本地图片逐个加入 asset 协议作用域（运行期动态放行，不整盘开放）。

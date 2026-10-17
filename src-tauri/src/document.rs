@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::error::AppError;
 use crate::media;
+use crate::settings::ScrollPosition;
 use crate::{fs, parser, sanitize};
 
 /// 一次文档加载各阶段耗时（毫秒），用于性能验收与启动诊断（SPEC §9.9/§14）。
@@ -33,6 +34,8 @@ pub struct DocumentPayload {
     pub headings: Vec<parser::Heading>,
     /// 图片资源（本地路径/尺寸或远程标记），前端据此设置 src 与占位尺寸。
     pub images: Vec<media::ImageResource>,
+    /// 记忆的滚动位置（首帧同步恢复，SPEC §9.3 第 6 项）；由命令层填充。
+    pub saved_scroll: Option<ScrollPosition>,
     pub size_bytes: u64,
     pub timings: LoadTimings,
 }
@@ -76,6 +79,7 @@ pub fn load_document(path: &Path) -> Result<DocumentPayload, AppError> {
         html,
         headings: rendered.headings,
         images,
+        saved_scroll: None,
         size_bytes: loaded.size_bytes,
         timings: LoadTimings {
             read_ms,

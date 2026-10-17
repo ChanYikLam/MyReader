@@ -25,12 +25,28 @@ export interface ImageResource {
   height: number | null;
 }
 
+/** 每个文件的滚动位置记忆（与 settings.rs::ScrollPosition 对应）。 */
+export interface ScrollPosition {
+  top: number;
+  docHeight: number;
+  viewportWidth: number;
+  updatedAt: number;
+}
+
+/** 最近打开文件条目（File → Open Recent / 欢迎页）。 */
+export interface RecentFile {
+  path: string;
+  name: string;
+  openedAt: number;
+}
+
 export interface DocumentPayload {
   path: string;
   fileName: string;
   html: string;
   headings: Heading[];
   images: ImageResource[];
+  savedScroll: ScrollPosition | null;
   sizeBytes: number;
   timings: LoadTimings;
 }
@@ -39,6 +55,8 @@ export interface BootstrapPayload {
   initialDocument: DocumentPayload | null;
   /** 明暗两套代码高亮 CSS（按 data-theme 作用域）。 */
   highlightCss: string;
+  /** 最近打开列表（欢迎页展示，最多 10 条）。 */
+  recent: RecentFile[];
 }
 
 /** Rust 侧 AppError 序列化后的形状（SPEC §5）。 */
