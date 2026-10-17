@@ -1,6 +1,9 @@
 use comrak::nodes::{AstNode, NodeValue};
-use comrak::{format_html, parse_document, Anchorizer, Arena, Options};
+use comrak::options::Plugins;
+use comrak::{format_html_with_plugins, parse_document, Anchorizer, Arena, Options};
 use serde::Serialize;
+
+use crate::highlight;
 
 /// 一个标题的大纲条目。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -34,9 +37,13 @@ pub fn render_markdown(markdown: &str) -> RenderedMarkdown {
 
     let headings = collect_headings(root);
 
+    // 代码块交给 syntect 输出 class-based 高亮 HTML（未知语言自动回退纯文本）。
+    let mut plugins = Plugins::default();
+    plugins.render.codefence_syntax_highlighter = Some(highlight::adapter());
+
     // 输出到 String 不会失败，这里仍按 fmt::Result 处理以保持 API 完整。
     let mut html = String::with_capacity(markdown.len() + markdown.len() / 2);
-    if format_html(root, &options, &mut html).is_err() {
+    if format_html_with_plugins(root, &options, &mut html, &plugins).is_err() {
         html.clear();
     }
 
@@ -145,12 +152,30 @@ mod tests {
     }
 
     #[test]
-    fn renders_code_fence_with_language_class() {
+    fn renders_highlighted_code_fence() {
         let markdown = "```rust\nfn main() {}\n```\n";
         let rendered = render_markdown(markdown);
 
+        // syntect class 模式的输出：pre 带 syntax-highlighting，code 带语言 class，
+        // token 按 scope 拆成带 hl- 前缀的 class（如 hl-storage/hl-function）。
         assert!(rendered.html.contains("<code class=\"language-rust\">"));
-        assert!(rendered.html.contains("fn main()"));
+        assert!(rendered.html.contains("syntax-highlighting"));
+        assert!(
+            rendered.html.contains("hl-source"),
+            "html={}",
+            rendered.html
+        );
+        assert!(rendered.html.contains("hl-storage"));
+        assert!(rendered.html.contains("main"));
+    }
+
+    #[test]
+    fn unknown_language_falls_back_without_error() {
+        let rendered = render_markdown("```notalang\nplain text\n```\n");
+
+        assert!(rendered.html.contains("language-notalang"));
+        assert!(rendered.html.contains("syntax-highlighting"));
+        assert!(rendered.html.contains("plain text"));
     }
 
     #[test]

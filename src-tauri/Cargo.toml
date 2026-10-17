@@ -17,7 +17,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 # 需求指定解析器。关掉默认特性（CLI 依赖与 onig C 库），只保留核心解析/渲染。
-comrak = { version = "0.56", default-features = false }
+# syntect-fancy 使用纯 Rust 正则（避免 onig C 依赖）。
+comrak = { version = "0.56", default-features = false, features = ["syntect-fancy"] }
+# 需求指定代码高亮；只用内置主题/语法集与 HTML 类名生成（class-based）。
+syntect = { version = "5.3", default-features = false, features = [
+    "default-syntaxes",
+    "default-themes",
+    "html",
+] }
 # HTML 白名单净化（安全硬要求），基于 html5ever 的标准 sanitizer。
 ammonia = "4.2"
 # 系统文件打开对话框（Cmd+O，需求「打开文件」）。
