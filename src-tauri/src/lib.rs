@@ -6,6 +6,7 @@ pub mod error;
 pub mod file_dialog;
 pub mod fs;
 pub mod highlight;
+pub mod media;
 pub mod menu;
 pub mod parser;
 pub mod sanitize;

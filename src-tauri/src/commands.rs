@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use serde::Serialize;
-use tauri::WebviewWindow;
+use tauri::{Manager, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::diagnostics;
@@ -9,6 +9,7 @@ use crate::document::{self, DocumentPayload};
 use crate::error::AppError;
 use crate::file_dialog;
 use crate::highlight;
+use crate::media;
 use crate::state::StartupState;
 
 /// 启动引导载荷：命令启动时前端需要的初始数据。
@@ -29,6 +30,7 @@ pub struct BootstrapPayload {
 /// 失败时返回 AppError，由前端的错误页承载（SPEC §9.6）。
 #[tauri::command]
 pub async fn bootstrap(
+    app: tauri::AppHandle,
     state: tauri::State<'_, StartupState>,
 ) -> Result<BootstrapPayload, AppError> {
     let initial_path = state.take_pending_open_path();
@@ -44,6 +46,10 @@ pub async fn bootstrap(
         detail: error.to_string(),
     })??;
 
+    if let Some(document) = initial_document.as_ref() {
+        register_image_scopes(&app, document);
+    }
+
     Ok(BootstrapPayload {
         initial_document,
         highlight_css: highlight::theme_css().to_string(),
@@ -52,12 +58,24 @@ pub async fn bootstrap(
 
 /// 打开指定路径的文档：读取/解析/净化在阻塞线程池执行，避免卡住 UI。
 #[tauri::command]
-pub async fn open_path(path: String) -> Result<DocumentPayload, AppError> {
-    tauri::async_runtime::spawn_blocking(move || document::load_document(Path::new(&path)))
-        .await
-        .map_err(|error| AppError::Internal {
-            detail: error.to_string(),
-        })?
+pub async fn open_path(app: tauri::AppHandle, path: String) -> Result<DocumentPayload, AppError> {
+    let payload =
+        tauri::async_runtime::spawn_blocking(move || document::load_document(Path::new(&path)))
+            .await
+            .map_err(|error| AppError::Internal {
+                detail: error.to_string(),
+            })??;
+
+    register_image_scopes(&app, &payload);
+    Ok(payload)
+}
+
+/// 把本地图片逐个加入 asset 协议作用域（运行期动态放行，不整盘开放）。
+fn register_image_scopes(app: &tauri::AppHandle, document: &DocumentPayload) {
+    let scope = app.asset_protocol_scope();
+    for path in media::local_paths(&document.images) {
+        let _ = scope.allow_file(path);
+    }
 }
 
 /// 弹出系统文件对话框，返回选中的路径；取消时返回 None。

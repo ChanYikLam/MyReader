@@ -3,6 +3,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::error::AppError;
+use crate::media;
 use crate::{fs, parser, sanitize};
 
 /// 一次文档加载各阶段耗时（毫秒），用于性能验收与启动诊断（SPEC §9.9/§14）。
@@ -30,6 +31,8 @@ pub struct DocumentPayload {
     pub html: String,
     /// 文档大纲（M5 侧栏使用）。
     pub headings: Vec<parser::Heading>,
+    /// 图片资源（本地路径/尺寸或远程标记），前端据此设置 src 与占位尺寸。
+    pub images: Vec<media::ImageResource>,
     pub size_bytes: u64,
     pub timings: LoadTimings,
 }
@@ -49,6 +52,8 @@ pub fn load_document(path: &Path) -> Result<DocumentPayload, AppError> {
     let html = sanitize::sanitize_html(&rendered.html);
     let sanitize_ms = elapsed_ms(sanitize_started);
 
+    let images = media::resolve_images(&loaded.path, &rendered.images);
+
     let file_name = loaded
         .path
         .file_name()
@@ -60,6 +65,7 @@ pub fn load_document(path: &Path) -> Result<DocumentPayload, AppError> {
         file_name,
         html,
         headings: rendered.headings,
+        images,
         size_bytes: loaded.size_bytes,
         timings: LoadTimings {
             read_ms,

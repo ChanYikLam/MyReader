@@ -24,6 +24,8 @@ pub struct RenderedMarkdown {
     pub html: String,
     /// 文档大纲（含兜底 id 与标题锚点一致）。
     pub headings: Vec<Heading>,
+    /// 文档中出现的图片 src（按文档顺序），交给 media 解析为本地/远程资源。
+    pub images: Vec<String>,
 }
 
 /// 解析并渲染 Markdown。
@@ -36,6 +38,7 @@ pub fn render_markdown(markdown: &str) -> RenderedMarkdown {
     let root = parse_document(&arena, markdown, &options);
 
     let headings = collect_headings(root);
+    let images = collect_image_sources(root);
 
     // 代码块交给 syntect 输出 class-based 高亮 HTML（未知语言自动回退纯文本）。
     let mut plugins = Plugins::default();
@@ -47,7 +50,11 @@ pub fn render_markdown(markdown: &str) -> RenderedMarkdown {
         html.clear();
     }
 
-    RenderedMarkdown { html, headings }
+    RenderedMarkdown {
+        html,
+        headings,
+        images,
+    }
 }
 
 /// 构造 comrak 选项（SPEC §5 渲染管线）。
@@ -101,6 +108,17 @@ fn collect_headings<'a>(root: &'a AstNode<'a>) -> Vec<Heading> {
     }
 
     headings
+}
+
+/// 按文档顺序收集图片 src（用于本地路径解析与尺寸探测）。
+fn collect_image_sources<'a>(root: &'a AstNode<'a>) -> Vec<String> {
+    let mut sources = Vec::new();
+    for node in root.descendants() {
+        if let NodeValue::Image(link) = &node.data().value {
+            sources.push(link.url.clone());
+        }
+    }
+    sources
 }
 
 #[cfg(test)]

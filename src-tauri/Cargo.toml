@@ -12,10 +12,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+# 只读图片文件头解析像素尺寸（本地图片确定性占位，SPEC §9.3 第 5 项）。
+imagesize = "0.15"
 # 需求指定解析器。关掉默认特性（CLI 依赖与 onig C 库），只保留核心解析/渲染。
 # syntect-fancy 使用纯 Rust 正则（避免 onig C 依赖）。
 comrak = { version = "0.56", default-features = false, features = ["syntect-fancy"] }
