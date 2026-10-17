@@ -3,12 +3,37 @@ import type { AppErrorPayload, DocumentPayload } from "./types";
 
 const APP_NAME = "MyReader";
 
+/** 视图上可用的操作（目前只有「打开文件…」）。 */
+export interface DocumentViewActions {
+  onOpenFile?: () => void;
+}
+
 function requireContentRoot(): HTMLElement {
   const root = document.querySelector<HTMLElement>("#content-root");
   if (root === null) {
     throw new Error("缺少 #content-root 容器");
   }
   return root;
+}
+
+function createOpenFileButton(actions: DocumentViewActions): HTMLElement | null {
+  if (actions.onOpenFile === undefined) {
+    return null;
+  }
+
+  const actionsRow = document.createElement("p");
+  actionsRow.className = "view-actions";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "open-file-button";
+  button.textContent = "打开文件…";
+  button.addEventListener("click", () => {
+    actions.onOpenFile?.();
+  });
+
+  actionsRow.append(button);
+  return actionsRow;
 }
 
 /**
@@ -29,7 +54,7 @@ export function renderDocument(payload: DocumentPayload): void {
 }
 
 /** 无文件启动时的欢迎页（SPEC §18 A2）。 */
-export function renderWelcome(): void {
+export function renderWelcome(actions: DocumentViewActions = {}): void {
   const root = requireContentRoot();
 
   const section = document.createElement("section");
@@ -45,15 +70,24 @@ export function renderWelcome(): void {
 
   const hint = document.createElement("p");
   hint.className = "welcome-hint";
-  hint.textContent = "打开一个 Markdown 文件开始阅读";
+  hint.textContent = "使用「文件 → 打开…」（⌘O）选择 Markdown 文件";
 
   section.append(title, subtitle, hint);
+
+  const button = createOpenFileButton(actions);
+  if (button !== null) {
+    section.append(button);
+  }
+
   root.replaceChildren(section);
   applyWindowTitle(null);
 }
 
 /** 错误页：启动失败/文件打不开时展示，窗口仍会正常显示（SPEC §9.6）。 */
-export function renderError(error: AppErrorPayload): void {
+export function renderError(
+  error: AppErrorPayload,
+  actions: DocumentViewActions = {},
+): void {
   const root = requireContentRoot();
 
   const section = document.createElement("section");
@@ -73,6 +107,11 @@ export function renderError(error: AppErrorPayload): void {
     detail.className = "error-detail";
     detail.textContent = error.detail;
     section.append(detail);
+  }
+
+  const button = createOpenFileButton(actions);
+  if (button !== null) {
+    section.append(button);
   }
 
   root.replaceChildren(section);

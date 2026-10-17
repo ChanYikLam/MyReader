@@ -29,6 +29,9 @@ pub enum AppError {
         source: std::io::Error,
     },
 
+    #[error("无法打开文件选择对话框")]
+    Dialog { detail: String },
+
     #[error("内部错误")]
     Internal { detail: String },
 }
@@ -43,6 +46,7 @@ impl AppError {
             Self::UnsupportedType { .. } => "unsupported_type",
             Self::NotAFile { .. } => "not_a_file",
             Self::Io { .. } => "io_error",
+            Self::Dialog { .. } => "dialog",
             Self::Internal { .. } => "internal",
         }
     }
@@ -50,6 +54,7 @@ impl AppError {
     fn detail(&self) -> Option<String> {
         match self {
             Self::Io { source, .. } => Some(source.to_string()),
+            Self::Dialog { detail } => Some(detail.clone()),
             Self::Internal { detail } => Some(detail.clone()),
             _ => None,
         }

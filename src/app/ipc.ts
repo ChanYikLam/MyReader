@@ -28,6 +28,11 @@ export async function openPath(path: string): Promise<DocumentPayload> {
   return await invoke<DocumentPayload>("open_path", { path });
 }
 
+/** 弹出系统文件选择对话框；取消时返回 null。 */
+export async function pickFile(): Promise<string | null> {
+  return await invoke<string | null>("pick_file");
+}
+
 /** 设置原生窗口标题（macOS 标题栏显示文件名，SPEC §18 A14）。 */
 export async function setWindowTitle(title: string): Promise<void> {
   await invoke("set_window_title", { title });

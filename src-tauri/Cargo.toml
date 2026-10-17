@@ -20,6 +20,8 @@ thiserror = "2"
 comrak = { version = "0.56", default-features = false }
 # HTML 白名单净化（安全硬要求），基于 html5ever 的标准 sanitizer。
 ammonia = "4.2"
+# 系统文件打开对话框（Cmd+O，需求「打开文件」）。
+tauri-plugin-dialog = "2.8"
 
 [profile.dev]
 incremental = true

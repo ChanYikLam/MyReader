@@ -3,7 +3,9 @@ pub mod commands;
 pub mod diagnostics;
 pub mod document;
 pub mod error;
+pub mod file_dialog;
 pub mod fs;
+pub mod menu;
 pub mod parser;
 pub mod sanitize;
 pub mod state;
@@ -36,9 +38,13 @@ pub fn run() {
         state::StartupState::new(state::initial_path_from_args(std::env::args().skip(1)));
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         // 在 build 阶段注册状态：RunEvent::Opened 可能在 setup 之前到达。
         .manage(startup_state)
         .setup(move |app| {
+            menu::install(app.handle())?;
+            app.on_menu_event(menu::handle_event);
+
             let boot_state = boot::BootState::default();
             boot::create_main_window(app.handle(), &boot_state, started_at_ms)?;
             Ok(())
@@ -46,6 +52,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::bootstrap,
             commands::open_path,
+            commands::pick_file,
             commands::reveal_window,
             commands::report_boot_event,
             commands::set_window_title,

@@ -79,3 +79,27 @@
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+
+/* 欢迎页/错误页上的操作按钮 */
+.view-actions {
+  margin: 2em 0 0;
+}
+
+.open-file-button {
+  padding: 8px 18px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--fg);
+  cursor: pointer;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.open-file-button:hover {
+  border-color: var(--fg-muted);
+}
+
+.open-file-button:active {
+  transform: translateY(1px);
+}
