@@ -95,7 +95,8 @@
   padding: 14px 16px;
   overflow-x: auto;
   line-height: 1.55;
-  background: var(--bg-muted);
+  color: var(--code-fg);
+  background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
 }

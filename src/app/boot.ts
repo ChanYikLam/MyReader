@@ -1,4 +1,5 @@
 import { renderDocument, renderError, renderWelcome } from "./document";
+import { installHighlightStyles } from "./highlight";
 import { installLinkHandler } from "./links";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
 import {
@@ -110,6 +111,8 @@ export async function boot(): Promise<void> {
 
   try {
     const startup = await fetchBootstrap();
+    installHighlightStyles(startup.highlightCss);
+
     if (startup.initialDocument !== null) {
       renderDocument(startup.initialDocument);
       reportBootEvent(

@@ -33,6 +33,9 @@
         --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
         --content-font-size: 17px;
         --content-width: 760px;
+        /* 代码高亮主题变量默认值；注入的高亮 CSS 会按 data-theme 覆盖 */
+        --code-bg: var(--bg-muted);
+        --code-fg: var(--fg);
       }
       html[data-theme="light"] {
         color-scheme: light;

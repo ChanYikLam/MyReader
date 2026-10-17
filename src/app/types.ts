@@ -24,6 +24,8 @@ export interface DocumentPayload {
 
 export interface BootstrapPayload {
   initialDocument: DocumentPayload | null;
+  /** 明暗两套代码高亮 CSS（按 data-theme 作用域）。 */
+  highlightCss: string;
 }
 
 /** Rust 侧 AppError 序列化后的形状（SPEC §5）。 */

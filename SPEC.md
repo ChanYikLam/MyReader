@@ -327,6 +327,10 @@ katex.renderToString(tex, {
 - **持久化**：手动选择写入 store（`theme.mode`）；重启时由 `__BOOT__` 注入（§9.1）。
 - **配色**：浅色近 GitHub 阅读风格（bg `#ffffff`、text `#1f2328`、边框 `#d1d9e0`），深色（bg `#0d1117`、text `#e6edf3`、边框 `#30363d`）；正文/代码/公式/表格边框/引用块背景全部走 CSS 变量。
 - **代码高亮**：两份 class CSS 做作用域前缀 `html[data-theme="light"]` / `html[data-theme="dark"]`，纯 CSS 切换，零 JS 时序风险；代码块背景/前景取对应 syntect 主题 settings。
+  - 实现注记：Tauri 构建期会往 CSP `style-src` 注入 nonce，按 CSP 规范这会让
+    `'unsafe-inline'` 失效、动态 `<style>` 被拦截（实测 `sheet` 为 null）；
+    因此高亮 CSS 通过 CSSOM 构造样式表（`adoptedStyleSheets`）注入，不受该限制。
+  - syntect 语法集/主题集加载约 100–200ms，启动时后台线程 `prewarm` 与窗口创建并行预热。
 - **无过渡动画**：主题切换瞬时完成（不加 `transition`），避免"半深半浅"过渡帧；首帧不激活任何动画。
 - 正文字体：系统字体栈 `-apple-system, BlinkMacSystemFont, "PingFang SC", ...`（零 FOUT）；代码字体：`ui-monospace, "SF Mono", Menlo, monospace`。
 

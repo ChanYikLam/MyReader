@@ -29,6 +29,14 @@ pub fn adapter() -> &'static SyntectAdapter {
     })
 }
 
+/// 预热语法集/主题集（约 100–200 ms）。与窗口创建、前端加载并行，
+/// 避免首次文档解析被加载成本拖慢（SPEC §14 冷启动预算）。
+pub fn prewarm() {
+    std::thread::spawn(|| {
+        let _ = adapter();
+    });
+}
+
 /// 明暗两套代码高亮 CSS（含代码块背景/前景 CSS 变量），进程内只生成一次。
 pub fn theme_css() -> &'static str {
     static CSS: OnceLock<String> = OnceLock::new();

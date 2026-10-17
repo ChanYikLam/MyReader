@@ -44,6 +44,7 @@ pub fn run() {
         // 在 build 阶段注册状态：RunEvent::Opened 可能在 setup 之前到达。
         .manage(startup_state)
         .setup(move |app| {
+            highlight::prewarm();
             menu::install(app.handle())?;
             app.on_menu_event(menu::handle_event);
 

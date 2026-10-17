@@ -8,6 +8,7 @@ use crate::diagnostics;
 use crate::document::{self, DocumentPayload};
 use crate::error::AppError;
 use crate::file_dialog;
+use crate::highlight;
 use crate::state::StartupState;
 
 /// 启动引导载荷：命令启动时前端需要的初始数据。
@@ -18,6 +19,8 @@ use crate::state::StartupState;
 #[serde(rename_all = "camelCase")]
 pub struct BootstrapPayload {
     pub initial_document: Option<DocumentPayload>,
+    /// 明暗两套代码高亮 CSS（按 data-theme 作用域），首帧前注入 <head>。
+    pub highlight_css: String,
 }
 
 /// 前端启动时调用一次，拿到首帧所需的全部数据。
@@ -41,7 +44,10 @@ pub async fn bootstrap(
         detail: error.to_string(),
     })??;
 
-    Ok(BootstrapPayload { initial_document })
+    Ok(BootstrapPayload {
+        initial_document,
+        highlight_css: highlight::theme_css().to_string(),
+    })
 }
 
 /// 打开指定路径的文档：读取/解析/净化在阻塞线程池执行，避免卡住 UI。
