@@ -1,3 +1,8 @@
+// KaTeX 样式静态引入：Vite 会把它打进构建产物（CSS + 本地 woff2 字体），
+// 不走 CDN、离线可用（SPEC §8）；必须在首屏样式阶段加载，
+// 不能等公式渲染后再异步引入，否则会出现公式字体/布局闪动。
+import "katex/dist/katex.min.css";
+
 import "./styles/app.css";
 import "./styles/markdown.css";
 
