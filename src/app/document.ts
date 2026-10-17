@@ -41,8 +41,10 @@ function createOpenFileButton(actions: DocumentViewActions): HTMLElement | null 
  *
  * `payload.html` 已在 Rust 侧完成 ammonia 白名单净化（SPEC §13），
  * 这里只做一次 DOM 替换；窗口此时仍不可见（reveal 在 boot 流程末尾）。
+ *
+ * 返回 article 元素，供公式渲染/图片处理阶段复用。
  */
-export function renderDocument(payload: DocumentPayload): void {
+export function renderDocument(payload: DocumentPayload): HTMLElement {
   const root = requireContentRoot();
 
   const article = document.createElement("article");
@@ -54,6 +56,7 @@ export function renderDocument(payload: DocumentPayload): void {
 
   root.replaceChildren(article);
   applyWindowTitle(payload.fileName);
+  return article;
 }
 
 /** 无文件启动时的欢迎页（SPEC §18 A2）。 */

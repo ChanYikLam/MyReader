@@ -278,3 +278,46 @@
 .markdown-body .footnote-ref {
   font-size: 0.8em;
 }
+
+/* 数学公式（KaTeX） */
+.markdown-body .math-inline {
+  display: inline;
+}
+
+.markdown-body .math-display {
+  display: block;
+  margin: 1.2em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+}
+
+.markdown-body .math-display .katex-display {
+  margin: 0;
+}
+
+/* 公式错误：红色原文 + 可见提示，不中断后续内容 */
+.markdown-body .katex-error,
+.markdown-body .math-error-source {
+  color: #d1242f;
+}
+
+.markdown-body .math-error-source {
+  padding: 0.1em 0.3em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: rgb(209 36 47 / 8%);
+  border-radius: 4px;
+}
+
+.markdown-body .math-error-hint {
+  margin-left: 0.4em;
+  font-size: 0.78em;
+  color: #d1242f;
+  cursor: help;
+}
+
+.markdown-body .math-display .math-error-hint {
+  display: block;
+  margin: 0.4em 0 0;
+}

@@ -1,6 +1,7 @@
 import { renderDocument, renderError, renderWelcome } from "./document";
 import { installHighlightStyles } from "./highlight";
 import { prepareImages } from "./images";
+import { renderMath, warmUpMathFonts } from "./math";
 import { installLinkHandler } from "./links";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
 import {
@@ -115,7 +116,17 @@ export async function boot(): Promise<void> {
     installHighlightStyles(startup.highlightCss);
 
     if (startup.initialDocument !== null) {
-      renderDocument(startup.initialDocument);
+      const article = renderDocument(startup.initialDocument);
+
+      // 全部公式在 reveal 前同步渲染（SPEC §9.3 决策）：
+      // 高度确定 → 滚动恢复精确、之后滚动条长度不跳变。
+      const mathStats = renderMath(article);
+      reportBootEvent("math-ready", elapsedMs(), JSON.stringify(mathStats));
+      if (mathStats.total > 0) {
+        const fontStats = await warmUpMathFonts();
+        reportBootEvent("math-fonts", elapsedMs(), JSON.stringify(fontStats));
+      }
+
       const imageStats = await prepareImages(startup.initialDocument);
       reportBootEvent("images-ready", elapsedMs(), JSON.stringify(imageStats));
       reportBootEvent(
