@@ -28,7 +28,8 @@ export function requestReveal(reason: string): void {
 
   reportBootEvent("reveal-request", performance.now(), `reason=${reason}`);
 
-  void revealWindow()
+  const resolvedTheme = document.documentElement.dataset.theme ?? "light";
+  void revealWindow(resolvedTheme)
     .then(() => {
       document.documentElement.dataset.revealed = "true";
       reportBootEvent(

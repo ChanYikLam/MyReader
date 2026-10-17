@@ -43,7 +43,17 @@ export async function setWindowTitle(title: string): Promise<void> {
   await invoke("set_window_title", { title });
 }
 
-/** 显示主窗口：全应用唯一的 show 调用入口（SPEC §9.5）。 */
-export async function revealWindow(): Promise<void> {
-  await invoke("reveal_window");
+/**
+ * 显示主窗口：全应用唯一的 show 调用入口（SPEC §9.5）。
+ *
+ * `backgroundTheme` 是前端解析后的 "light" | "dark"：Rust 会在 show 之前
+ * 把原生窗口背景色设置成主题底色（深色冷启动不闪白）。
+ */
+export async function revealWindow(backgroundTheme: string): Promise<void> {
+  await invoke("reveal_window", { backgroundTheme });
+}
+
+/** 运行期主题切换时同步原生窗口背景色。 */
+export async function setWindowBackground(theme: string): Promise<void> {
+  await invoke("set_window_background", { theme });
 }

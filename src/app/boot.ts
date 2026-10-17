@@ -3,6 +3,7 @@ import { installHighlightStyles } from "./highlight";
 import { prepareImages } from "./images";
 import { renderMath, warmUpMathFonts } from "./math";
 import { installLinkHandler } from "./links";
+import { installThemeListener } from "./theme";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
 import {
   installDragDropListener,
@@ -98,6 +99,7 @@ export async function boot(): Promise<void> {
 
   installRevealWatchdog();
   installLinkHandler();
+  installThemeListener();
 
   void probeAnimationFrames(2, RAF_PROBE_TIMEOUT_MS).then((result) => {
     reportBootEvent("raf-probe", elapsedMs(), JSON.stringify(result));

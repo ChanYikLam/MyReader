@@ -14,6 +14,7 @@ pub mod settings;
 pub mod state;
 #[cfg(test)]
 pub mod test_support;
+pub mod theme;
 
 use tauri::{Emitter, Manager};
 
@@ -48,10 +49,14 @@ pub fn run() {
         .manage(startup_state)
         .setup(move |app| {
             highlight::prewarm();
-            menu::install(app.handle())?;
+
+            // 窗口创建前读取持久化主题：菜单勾选 + __BOOT__ 注入都用它，
+            // 保证首帧主题与菜单状态一致、无闪变（SPEC §9.2）。
+            let theme_mode = settings::load_theme_mode(app.handle());
+            menu::install(app.handle(), theme_mode)?;
             app.on_menu_event(menu::handle_event);
 
-            let boot_state = boot::BootState::default();
+            let boot_state = boot::BootState::new(theme_mode);
             boot::create_main_window(app.handle(), &boot_state, started_at_ms)?;
             Ok(())
         })
@@ -63,6 +68,7 @@ pub fn run() {
             commands::reveal_window,
             commands::report_boot_event,
             commands::set_window_title,
+            commands::set_window_background,
         ])
         .build(tauri::generate_context!())
         .expect("MyReader 初始化失败");

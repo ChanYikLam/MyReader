@@ -21,6 +21,7 @@
         var root = document.documentElement;
         root.dataset.theme = dark ? "dark" : "light";
         root.dataset.themeMode = mode;
+        root.style.colorScheme = dark ? "dark" : "light";
         if (typeof boot.fontSize === "number") {
           root.style.setProperty("--content-font-size", boot.fontSize + "px");
         }

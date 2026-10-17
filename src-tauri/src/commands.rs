@@ -11,6 +11,7 @@ use crate::file_dialog;
 use crate::highlight;
 use crate::media;
 use crate::state::StartupState;
+use crate::theme;
 
 /// 启动引导载荷：命令启动时前端需要的初始数据。
 ///
@@ -92,8 +93,20 @@ pub async fn pick_file(app: tauri::AppHandle) -> Result<Option<String>, AppError
 }
 
 /// 显示主窗口。前端 `reveal.ts` 是唯一调用点（SPEC §9.5）。
+///
+/// `background_theme` 是前端解析后的 "light" | "dark"：show 之前先设置
+/// 原生窗口背景色，深色冷启动时任何过渡帧都不会是系统白底。
 #[tauri::command]
-pub fn reveal_window(window: WebviewWindow) -> Result<(), String> {
+pub fn reveal_window(
+    window: WebviewWindow,
+    background_theme: Option<String>,
+) -> Result<(), String> {
+    if let Some(theme_name) = background_theme.as_deref() {
+        if let Some(color) = theme::background_color(theme_name) {
+            let _ = window.set_background_color(Some(color));
+        }
+    }
+
     window
         .show()
         .map_err(|error| format!("显示主窗口失败：{error}"))?;
@@ -127,6 +140,16 @@ pub fn open_external(app: tauri::AppHandle, url: String) -> Result<(), AppError>
         .map_err(|error| AppError::Internal {
             detail: error.to_string(),
         })
+}
+
+/// 运行期主题切换时同步原生窗口背景色（窗口已可见，避免露出白底）。
+#[tauri::command]
+pub fn set_window_background(window: WebviewWindow, theme: String) -> Result<(), String> {
+    let color =
+        crate::theme::background_color(&theme).ok_or_else(|| format!("未知主题：{theme}"))?;
+    window
+        .set_background_color(Some(color))
+        .map_err(|error| format!("设置窗口背景色失败：{error}"))
 }
 
 /// 设置原生窗口标题（macOS 标题栏显示当前文件名，SPEC §18 A14）。
