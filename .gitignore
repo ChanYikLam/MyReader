@@ -2,7 +2,6 @@
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon?
 
 # ===== Rust / Cargo =====
 # 构建产物（Cargo.lock 必须提交，不在此列出）
