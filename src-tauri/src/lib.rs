@@ -1,6 +1,8 @@
-mod boot;
-mod commands;
-mod diagnostics;
+pub mod boot;
+pub mod commands;
+pub mod diagnostics;
+pub mod error;
+pub mod fs;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
