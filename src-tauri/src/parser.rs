@@ -60,6 +60,14 @@ fn build_options() -> Options<'static> {
     options.render.escape = true;
     // 输出 <pre><code class="language-xxx">，M2 起交给 syntect 做 class-based 高亮。
     options.render.github_pre_lang = false;
+
+    // GFM 扩展（需求「Markdown 渲染」）。
+    options.extension.strikethrough = true; // 删除线
+    options.extension.table = true; // 表格（含对齐）
+    options.extension.tasklist = true; // 任务列表（只读 checkbox）
+    options.extension.footnotes = true; // 脚注
+                                        // 给任务列表的 ul/li 加 task-list/task-list-item class，便于样式区分。
+    options.render.tasklist_classes = true;
     // 标题 id 由 comrak 生成（GFM 风格 slug + 去重），作为大纲跳转锚点。
     // 空前缀 = 纯 slug；与 collect_headings 中的 Anchorizer 保持一致。
     options.extension.header_id_prefix = Some(String::new());
@@ -184,6 +192,50 @@ mod tests {
 
         assert_eq!(rendered.headings.len(), 1);
         assert_eq!(rendered.headings[0].text, "粗 code");
+    }
+
+    #[test]
+    fn renders_table_with_alignment() {
+        let markdown = "| 左 | 中 | 右 |\n| :-- | :-: | --: |\n| a | b | c |\n";
+        let rendered = render_markdown(markdown);
+
+        assert!(rendered.html.contains("<table>"));
+        assert!(rendered.html.contains("<thead>"));
+        assert!(rendered.html.contains("<tbody>"));
+        assert!(rendered.html.contains(r#"align="left""#));
+        assert!(rendered.html.contains(r#"align="center""#));
+        assert!(rendered.html.contains(r#"align="right""#));
+    }
+
+    #[test]
+    fn renders_tasklist_checkboxes() {
+        let markdown = "- [x] 已完成\n- [ ] 未完成\n";
+        let rendered = render_markdown(markdown);
+
+        assert!(rendered.html.contains(r#"type="checkbox""#));
+        assert!(rendered.html.contains("checked"));
+        assert!(rendered.html.contains("disabled"));
+        assert!(rendered.html.contains("task-list"));
+        assert!(rendered.html.contains("已完成"));
+    }
+
+    #[test]
+    fn renders_footnotes() {
+        let markdown = "正文[^1]\n\n[^1]: 脚注内容\n";
+        let rendered = render_markdown(markdown);
+
+        assert!(rendered.html.contains("footnote-ref"));
+        assert!(rendered.html.contains(r#"class="footnotes""#));
+        assert!(rendered.html.contains("data-footnotes"));
+        assert!(rendered.html.contains("footnote-backref"));
+        assert!(rendered.html.contains("脚注内容"));
+    }
+
+    #[test]
+    fn renders_strikethrough() {
+        let rendered = render_markdown("~~删除线~~\n");
+
+        assert!(rendered.html.contains("<del>删除线</del>"));
     }
 
     #[test]

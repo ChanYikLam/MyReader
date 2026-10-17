@@ -133,6 +133,27 @@ mod tests {
     }
 
     #[test]
+    fn keeps_gfm_extensions_after_sanitize() {
+        let dir = TempDir::new();
+        let path = dir.write_file(
+            "gfm.md",
+            "| 左 | 中 |\n| :-- | :-: |\n| a | b |\n\n- [x] 完成\n- [ ] 未完成\n\n正文[^1]\n\n[^1]: 脚注\n\n~~删除~~\n"
+                .as_bytes(),
+        );
+
+        let document = load_document(&path).expect("加载应成功");
+
+        assert!(document.html.contains("<table>"), "html={}", document.html);
+        assert!(document.html.contains(r#"align="center""#));
+        assert!(document.html.contains(r#"type="checkbox""#));
+        assert!(document.html.contains("task-list"));
+        assert!(document.html.contains("footnotes"));
+        assert!(document.html.contains("data-footnotes"));
+        assert!(document.html.contains("footnote-backref"));
+        assert!(document.html.contains("<del>删除</del>"));
+    }
+
+    #[test]
     fn renders_basic_fixture() {
         let document = load_document(&fixture("basic.md")).expect("夹具应能加载");
 
