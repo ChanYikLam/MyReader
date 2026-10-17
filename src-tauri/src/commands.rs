@@ -11,7 +11,7 @@ use crate::file_dialog;
 use crate::highlight;
 use crate::media;
 use crate::settings::{self, RecentFile};
-use crate::state::StartupState;
+use crate::state::{StartupState, WindowState};
 use crate::theme;
 
 /// 启动引导载荷：命令启动时前端需要的初始数据。
@@ -141,6 +141,7 @@ pub async fn pick_file(app: tauri::AppHandle) -> Result<Option<String>, AppError
 /// 原生窗口背景色，深色冷启动时任何过渡帧都不会是系统白底。
 #[tauri::command]
 pub fn reveal_window(
+    app: tauri::AppHandle,
     window: WebviewWindow,
     background_theme: Option<String>,
 ) -> Result<(), String> {
@@ -154,6 +155,9 @@ pub fn reveal_window(
         .show()
         .map_err(|error| format!("显示主窗口失败：{error}"))?;
     let _ = window.set_focus();
+    if let Some(window_state) = app.try_state::<WindowState>() {
+        window_state.mark_revealed();
+    }
     diagnostics::boot_log(&format!(
         "reveal_window shown inner_size={:?} outer_size={:?}",
         window.inner_size(),

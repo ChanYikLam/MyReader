@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 /// 应用启动期状态 / 运行期「待打开文件」暂存。
@@ -31,6 +32,25 @@ impl StartupState {
         if let Ok(mut guard) = self.pending_open_path.lock() {
             *guard = Some(path);
         }
+    }
+}
+
+/// 主窗口显示状态：区分「启动中（未 reveal）」与「已就绪（可能被隐藏）」。
+///
+/// 启动期间收到的文件关联事件不能提前 show 窗口（会破坏首帧完整性），
+/// 由前端首帧流程统一 reveal；只有 reveal 之后的再次打开才主动唤起窗口。
+#[derive(Debug, Default)]
+pub struct WindowState {
+    revealed: AtomicBool,
+}
+
+impl WindowState {
+    pub fn mark_revealed(&self) {
+        self.revealed.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_revealed(&self) -> bool {
+        self.revealed.load(Ordering::SeqCst)
     }
 }
 

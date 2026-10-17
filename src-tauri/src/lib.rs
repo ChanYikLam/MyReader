@@ -48,6 +48,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         // 在 build 阶段注册状态：RunEvent::Opened 可能在 setup 之前到达。
         .manage(startup_state)
+        .manage(state::WindowState::default())
         .setup(move |app| {
             highlight::prewarm();
 
@@ -80,9 +81,21 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("MyReader 初始化失败");
 
-    app.run(|app_handle, event| {
+    app.run(|app_handle, event| match event {
+        // Cmd+W / 菜单「关闭窗口」：隐藏主窗口而不是销毁，
+        // 这样文件关联/再次打开时还能复用同一个窗口与前端状态。
+        tauri::RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::CloseRequested { api, .. },
+            ..
+        } if label == "main" => {
+            api.prevent_close();
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.hide();
+            }
+        }
         // Finder 双击 / `open -a` 打开文件时 macOS 投递的打开事件。
-        if let tauri::RunEvent::Opened { urls } = event {
+        tauri::RunEvent::Opened { urls } => {
             let Some(path) = urls.iter().find_map(|url| url.to_file_path().ok()) else {
                 return;
             };
@@ -93,8 +106,29 @@ pub fn run() {
             }
 
             if let Some(window) = app_handle.get_webview_window("main") {
+                // 启动阶段（尚未 reveal）不提前显示，避免破坏首帧完整性。
+                let revealed = app_handle
+                    .try_state::<state::WindowState>()
+                    .is_some_and(|window_state| window_state.is_revealed());
+                if revealed {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
                 let _ = window.emit("open-file", path.display().to_string());
             }
         }
+        // 点击 Dock 图标 / 窗口被隐藏后重新激活。
+        tauri::RunEvent::Reopen { .. } => {
+            let revealed = app_handle
+                .try_state::<state::WindowState>()
+                .is_some_and(|window_state| window_state.is_revealed());
+            if revealed {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        }
+        _ => {}
     });
 }
