@@ -53,6 +53,11 @@ export async function revealWindow(backgroundTheme: string): Promise<void> {
   await invoke("reveal_window", { backgroundTheme });
 }
 
+/** 调整字号（delta=0 恢复默认），Rust 侧钳制并持久化。 */
+export async function changeFontSize(delta: number): Promise<void> {
+  await invoke("change_font_size", { delta });
+}
+
 /** 保存当前文档滚动位置（store 按文件路径记忆）。 */
 export async function saveScroll(
   path: string,

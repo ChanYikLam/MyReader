@@ -5,7 +5,7 @@ import { prepareImages } from "./images";
 import { renderMath, warmUpMathFonts } from "./math";
 import { buildSidebar, clearSidebar, installSidebarListener } from "./outline";
 import { installScrollSaver, restoreScrollForDocument } from "./scroll";
-import { installFontSizeListener } from "./typography";
+import { installFontSizeListener, installFontSizeShortcuts } from "./typography";
 import { installLinkHandler } from "./links";
 import { installThemeListener } from "./theme";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
@@ -106,6 +106,7 @@ export async function boot(): Promise<void> {
   installLinkHandler();
   installThemeListener();
   installFontSizeListener();
+  installFontSizeShortcuts();
   installSidebarListener();
 
   void probeAnimationFrames(2, RAF_PROBE_TIMEOUT_MS).then((result) => {

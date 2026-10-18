@@ -113,22 +113,23 @@ pub fn install(app: &AppHandle, theme_mode: ThemeMode) -> tauri::Result<()> {
         true,
         Some("CmdOrCtrl+B"),
     )?;
+    // 字号快捷键由前端 keydown 统一处理（覆盖 Shift 变体/小键盘，并阻止
+    // WebKit 页面缩放）；菜单项只做可发现入口。
     let font_increase = MenuItem::with_id(
         app,
         MENU_FONT_INCREASE,
-        "增大字号",
+        "增大字号（⌘+）",
         true,
-        Some("CmdOrCtrl+="),
+        None::<&str>,
     )?;
     let font_decrease = MenuItem::with_id(
         app,
         MENU_FONT_DECREASE,
-        "减小字号",
+        "减小字号（⌘-）",
         true,
-        Some("CmdOrCtrl+-"),
+        None::<&str>,
     )?;
-    let font_reset =
-        MenuItem::with_id(app, MENU_FONT_RESET, "实际大小", true, Some("CmdOrCtrl+0"))?;
+    let font_reset = MenuItem::with_id(app, MENU_FONT_RESET, "实际大小（⌘0）", true, None::<&str>)?;
     let view_menu = Submenu::with_items(
         app,
         "显示",

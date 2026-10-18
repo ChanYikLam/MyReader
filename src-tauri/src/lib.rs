@@ -77,6 +77,7 @@ pub fn run() {
             commands::set_window_background,
             commands::set_sidebar_open,
             commands::save_scroll,
+            commands::change_font_size,
         ])
         .build(tauri::generate_context!())
         .expect("MyReader 初始化失败");

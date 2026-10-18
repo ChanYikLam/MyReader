@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use serde::Serialize;
-use tauri::{Manager, WebviewWindow};
+use tauri::{Emitter, Manager, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::diagnostics;
@@ -85,6 +85,25 @@ fn finish_document_load(app: &tauri::AppHandle, document: &mut DocumentPayload) 
         Err(error) => diagnostics::boot_log(&format!("recent-save-error detail={error}")),
     }
     register_image_scopes(app, document);
+}
+
+/// 菜单/键盘快捷键共用的字号调整：delta=0 表示恢复默认字号。
+///
+/// 返回并广播新字号，前端只负责应用到 CSS 变量（持久化在 Rust 侧）。
+#[tauri::command]
+pub fn change_font_size(app: tauri::AppHandle, delta: i32) -> Result<u32, AppError> {
+    let current = settings::load_font_size(&app) as i32;
+    let next = if delta == 0 {
+        settings::DEFAULT_FONT_SIZE
+    } else {
+        settings::clamp_font_size((current + delta).max(1) as u32)
+    };
+
+    settings::save_font_size(&app, next)?;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.emit("font-size-changed", next);
+    }
+    Ok(next)
 }
 
 /// 侧栏开合持久化（首帧之外的用户操作由前端调用）。
