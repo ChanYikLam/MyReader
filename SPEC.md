@@ -667,3 +667,17 @@ katex.renderToString(tex, {
 - 安装位置：`/Applications/MyReader.app`（已注册 LaunchServices，Finder 双击 .md 可用）；
 - DMG：`src-tauri/target/release/bundle/dmg/MyReader_0.1.0_aarch64.dmg`（4.3 MB）；
 - 右上角 ◐ 按钮：循环 跟随系统 → 浅色 → 深色；⌘B/⌘=/⌘-/⌘0 快捷键可用。
+
+### 25.4 最终构建（安装版）复核说明
+
+- 复测环境：`/Applications/MyReader.app`（13:08 构建，含主题按钮/性能优化/占位符修复）。
+- 深色冷启动与含公式冷启动：窗口截图确认内容正确（深色配色、pmatrix/aligned/cases 已排版、
+  右上角主题按钮图标随模式变化）；性能计时 1MB 首帧 1.33–1.45s 在本构建上实测。
+- 滚动恢复首帧的逐帧录屏证据来自修复 window-state 可见性后的构建（滚动逻辑此后未改动，
+  仅追加字体预热/占位符/按钮）；本次复测因用户正在使用电脑，录屏采集到其他 Space，
+  无法在当前 Space 拍到窗口首帧——**该条以修复后构建的逐帧证据为准**，如需可在空闲时复测。
+- 说明：屏幕录制只能拍到当前 Space；窗口截图（`screencapture -l`）可拍任意 Space 的窗口，
+  但窗口在非活动 Space 时 WebKit 不会提交绘制（截图为未绘制的启动占位），
+  这不代表应用首帧缺陷。
+- 仍建议用户手动确认的验收项：Finder 双击 .md（15）、系统外观实时切换（11）、
+  点击外链（13）、断网首次打开公式文档（5）、菜单/按钮点击交互。
