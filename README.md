@@ -55,6 +55,30 @@ open src-tauri/target/release/bundle/dmg/MyReader_0.1.0_aarch64.dmg   # 拖入�
 或直接安装构建产物：`cp -R src-tauri/target/release/bundle/macos/MyReader.app /Applications/`。
 安装后可在 Finder 中双击任意 `.md` 文件用 MyReader 打开。
 
+### 分发给他人（Gatekeeper 提示处理）
+
+本应用没有 Apple Developer ID 证书，只做了 **ad-hoc 完整签名**（`signingIdentity: "-"`，
+构建时自动生成 `_CodeSignature`）。通过微信/网盘等传给其他 Mac 后，系统会给文件加隔离属性，
+首次打开可能提示「已损坏」或「无法验证开发者」——这是 macOS 的 Gatekeeper 拦截，不是文件损坏。
+
+接收方任选一种处理（推荐先做第 3 条再做第一次双击）：
+
+1. 右键 `MyReader.app` → 打开，若出现「仍要打开」则确认；
+2. 打开「系统设置 → 隐私与安全性」，滚动到底部点「仍要打开」；
+3. 终端执行（先拖入「应用程序」后执行，执行前不要先双击它）：
+
+   ```bash
+   sudo xattr -dr com.apple.quarantine /Applications/MyReader.app
+   ```
+
+分发包（含 `安装说明.txt` 与 `首次打开.command`）在 `dist/` 下（被 git 忽略，不入库）：
+
+- `dist/MyReader-0.1.0-macOS-arm64.dmg`
+- `dist/MyReader-0.1.0-macOS-arm64.zip`
+
+> 彻底免除提示需要 Apple Developer ID 签名 + 公证（notarytool），需要 Apple Developer Program 账号。
+> 当前构建仅含 arm64 架构；若接收方是 Intel Mac，需要额外构建 Universal 版本。
+
 ## 构建与运行
 
 前置：macOS 11+、Node.js 20+、Rust stable、Xcode Command Line Tools。
