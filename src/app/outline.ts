@@ -9,6 +9,7 @@
 import { listen } from "@tauri-apps/api/event";
 
 import { setSidebarOpen } from "./ipc";
+import { shortcutHint } from "./platform";
 import type { DocumentPayload, Heading } from "./types";
 
 /** 大纲只收 h1–h3（SPEC §18 A3/A15）。 */
@@ -54,7 +55,7 @@ export function buildSidebar(payload: DocumentPayload): void {
   collapse.type = "button";
   collapse.className = "sidebar-collapse";
   collapse.textContent = "‹";
-  collapse.title = "收起侧栏（⌘B）";
+  collapse.title = `收起侧栏（${shortcutHint("B")}）`;
   collapse.addEventListener("click", () => setSidebarVisible(false));
 
   header.append(title, collapse);
@@ -86,7 +87,7 @@ export function buildSidebar(payload: DocumentPayload): void {
   toggle.id = TOGGLE_ID;
   toggle.className = "sidebar-toggle";
   toggle.textContent = "☰";
-  toggle.title = "显示/隐藏目录（⌘B）";
+  toggle.title = `显示/隐藏目录（${shortcutHint("B")}）`;
   toggle.addEventListener("click", () => toggleSidebar());
 
   app.prepend(sidebar);

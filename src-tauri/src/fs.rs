@@ -28,7 +28,9 @@ pub struct LoadedFile {
 pub fn load_markdown_file(path: &Path) -> Result<LoadedFile, AppError> {
     let display_path = path.display().to_string();
 
-    let canonical = std::fs::canonicalize(path).map_err(|source| {
+    // dunce 在 Windows 上尽量去掉 canonicalize 返回的 `\\?\` 前缀；
+    // 其它平台等价于 std::fs::canonicalize。
+    let canonical = dunce::canonicalize(path).map_err(|source| {
         if source.kind() == std::io::ErrorKind::NotFound {
             AppError::NotFound {
                 path: display_path.clone(),

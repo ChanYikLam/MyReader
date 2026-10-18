@@ -4,12 +4,13 @@
 
 # MyReader
 
-**macOS 只读 Markdown 阅读器 · 打开即成品**
+**macOS / Windows 只读 Markdown 阅读器 · 打开即成品**
 
 第一帧就是完整排版的阅读视图：没有白屏、没有源码闪现、没有主题闪变、
 没有公式从 LaTeX 原文跳成排版、没有字体或图片加载后的布局跳动。
 
 [![macOS 11+](https://img.shields.io/badge/macOS-11%2B-000000?logo=apple&logoColor=white)](#快速开始)
+[![Windows 10/11 (Beta)](https://img.shields.io/badge/Windows-10%2F11%20(Beta)-0078D6?logo=windows&logoColor=white)](#windows-版本状态beta)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -18,25 +19,26 @@
 [![GitHub](https://img.shields.io/badge/GitHub-ChanYikLam%2FMyReader-181717?logo=github&logoColor=white)](https://github.com/ChanYikLam/MyReader)
 [![CNB](https://img.shields.io/badge/CNB-YukinoNO1%2FMyReader-1A7AF8)](https://cnb.cool/YukinoNO1/MyReader)
 
-[特性](#特性) · [快速开始](#快速开始) · [使用](#使用) · [技术栈](#技术栈) ·
-[架构](#架构与项目结构) · [已知限制](#已知限制) · [许可证](#许可证)
+[特性](#特性) · [Windows 状态](#windows-版本状态beta) · [快速开始](#快速开始) · [使用](#使用) ·
+[技术栈](#技术栈) · [架构](#架构与项目结构) · [已知限制](#已知限制) · [许可证](#许可证)
 
 </div>
 
 ---
 
-> **English** — MyReader is a read-only Markdown reader for macOS built with Rust and
-> Tauri 2. The window is only shown after the full document has been parsed, sanitized,
-> highlighted and typeset, so the very first frame is already the finished reading view.
-> Features GFM, KaTeX math, syntax highlighting, outline sidebar, light/dark theme and
-> per-file scroll memory. See [SPEC.md](SPEC.md) for the design decisions.
+> **English** — MyReader is a read-only Markdown reader for macOS and Windows built with
+> Rust and Tauri 2. The window is only shown after the full document has been parsed,
+> sanitized, highlighted and typeset, so the very first frame is already the finished
+> reading view. Features GFM, KaTeX math, syntax highlighting, outline sidebar,
+> light/dark theme and per-file scroll memory. See [SPEC.md](SPEC.md) for the design
+> decisions.
 
 ## 特性
 
 **打开方式**
 
-- 菜单「文件 → 打开…」（⌘O），文件过滤 `.md / .markdown / .mdown / .txt`
-- 拖拽文件到窗口、命令行参数、Finder 双击（文件关联）
+- 菜单「文件 → 打开…」（⌘O / Ctrl+O），文件过滤 `.md / .markdown / .mdown / .txt`
+- 拖拽文件到窗口、命令行参数、Finder / 资源管理器双击（文件关联）
 - 最近打开列表（最多 10 条）
 
 **Markdown 渲染**
@@ -55,15 +57,31 @@
 
 **阅读体验**
 
-- 深浅色三态（跟随系统 / 浅色 / 深色），⌘ 菜单或右上角按钮切换，手动选择持久化
+- 深浅色三态（跟随系统 / 浅色 / 深色），菜单或右上角按钮切换，手动选择持久化
 - 系统外观切换实时跟随（仅跟随系统模式），代码高亮 / 公式 / 表格 / 引用块同步换色
 - 目录侧栏（h1–h3、点击跳转、滚动高亮、折叠、状态持久化）
-- 字号调节（⌘= / ⌘- / ⌘0，13–24px）
+- 字号调节（⌘= / ⌘- / ⌘0，Windows 为 Ctrl+= / Ctrl+- / Ctrl+0，13–24px）
 - 每个文件的滚动位置独立记忆，重新打开首帧即恢复
 - 窗口大小 / 位置记忆，多显示器边界由插件处理
 
 **明确不做**：编辑 / 保存 / 新建、源码视图、导出、云同步、插件与自定义 CSS、
-公式编号与 `\ref`、`\(...\)` / `\[...\]` 定界符、Windows / Linux 支持。
+公式编号与 `\ref`、`\(...\)` / `\[...\]` 定界符、Linux 支持。
+
+桌面端支持 macOS 11+ 与 Windows 10/11。
+
+## Windows 版本状态（Beta）
+
+| 项目 | 状态 |
+|---|---|
+| 代码适配 | 完成：导航守卫、平台菜单、单实例文件关联、路径规范化、Ctrl 快捷键、字体栈 |
+| macOS 回归验证 | 通过：79 个单元测试、clippy `-D warnings`、release 构建 |
+| Windows CI 构建 | 已配置 [`.github/workflows/windows.yml`](.github/workflows/windows.yml)，待首次运行 |
+| Windows 真机验收 | **待完成**（安装、文件关联、首帧、菜单、快捷键、高 DPI） |
+| 代码签名 | 未做，首次运行可能出现 SmartScreen 提示 |
+
+macOS 版本为稳定版；Windows 版本当前为 Beta，验收通过后会更新本表。
+
+验收清单见 [docs/VERIFICATION.md](docs/VERIFICATION.md) 的「Windows 附加验收」一节。
 
 ## 快速开始
 
@@ -71,10 +89,11 @@
 
 | 依赖 | 版本 |
 |---|---|
-| macOS | 11.0 及以上 |
+| macOS（构建与应用） | 11.0 及以上，Xcode Command Line Tools 最新版 |
+| Windows（构建与应用） | 10 / 11，WebView2 运行时（系统自带或安装包内引导下载） |
 | Node.js | 20+ |
 | Rust | stable（含 `cargo`） |
-| Xcode Command Line Tools | 最新版 |
+| Windows 构建工具 | Visual Studio Build Tools（「使用 C++ 的桌面开发」） |
 
 ### 从源码构建
 
@@ -89,16 +108,35 @@ npm run tauri build
 
 构建产物：
 
-- `src-tauri/target/release/bundle/macos/MyReader.app`
-- `src-tauri/target/release/bundle/dmg/MyReader_0.1.0_aarch64.dmg`
+| 平台 | 路径 |
+|---|---|
+| macOS | `src-tauri/target/release/bundle/macos/MyReader.app` |
+| macOS | `src-tauri/target/release/bundle/dmg/MyReader_0.1.0_<arch>.dmg` |
+| Windows | `src-tauri/target/release/bundle/nsis/MyReader_0.1.0_x64-setup.exe` |
+| Windows | `src-tauri/target/release/bundle/msi/MyReader_0.1.0_x64_en-US.msi` |
+
+Windows 也可以只构建 NSIS 安装包（不需要 WiX / VBSCRIPT）：
+
+```powershell
+npm run tauri build -- --bundles nsis
+```
+
+Windows 构建需要在本机 Windows 上完成。仓库提供 GitHub Actions 工作流
+[`.github/workflows/windows.yml`](.github/workflows/windows.yml)，在 Actions 页手动
+触发或推送 `v*` 标签即可得到 NSIS 安装包。
 
 安装：
 
 ```bash
+# macOS
 cp -R src-tauri/target/release/bundle/macos/MyReader.app /Applications/
 ```
 
-安装后即可在 Finder 中双击任意 `.md` 文件用 MyReader 打开。
+```powershell
+# Windows：双击 MyReader_0.1.0_x64-setup.exe，按向导安装
+```
+
+安装后即可在 Finder / 资源管理器中双击任意 `.md` 文件用 MyReader 打开。
 
 ### 开发调试
 
@@ -123,18 +161,24 @@ Rust 侧包含 78 个单元测试，覆盖解析、净化、图片路径、设�
 
 ### 快捷键
 
-| 快捷键 | 功能 |
-|---|---|
-| ⌘O | 打开文件 |
-| ⌘B | 显示 / 隐藏目录侧栏 |
-| ⌘= / ⌘+ / ⌘- | 增大 / 减小字号 |
-| ⌘0 | 恢复默认字号 |
-| ⌘W | 隐藏窗口（点 Dock 图标恢复） |
+| macOS | Windows | 功能 |
+|---|---|---|
+| ⌘O | Ctrl+O | 打开文件 |
+| ⌘B | Ctrl+B | 显示 / 隐藏目录侧栏 |
+| ⌘= / ⌘+ / ⌘- | Ctrl+= / Ctrl++ / Ctrl+- | 增大 / 减小字号 |
+| ⌘0 | Ctrl+0 | 恢复默认字号 |
+| ⌘W | Ctrl+W | 隐藏窗口（点 Dock 图标 / 任务栏按钮恢复） |
 
 ### 命令行
 
 ```bash
+# macOS
 "MyReader.app/Contents/MacOS/myreader" path/to/file.md
+```
+
+```powershell
+# Windows
+& "$env:LOCALAPPDATA\Programs\MyReader\MyReader.exe" "C:\docs\file.md"
 ```
 
 > macOS 的 `open --args` 不会把参数传给应用，这是系统行为；需要命令行打开时请直接运行
@@ -193,10 +237,10 @@ Rust 侧包含 78 个单元测试，覆盖解析、净化、图片路径、设�
 
 ## 数据与设置
 
-| 内容 | 路径 |
-|---|---|
-| 主题 / 字号 / 侧栏 / 最近文件 / 滚动位置 | `~/Library/Application Support/com.myreader.app/settings.json` |
-| 窗口大小 / 位置 | `~/Library/Application Support/com.myreader.app/.window-state.json` |
+| 内容 | macOS | Windows |
+|---|---|---|
+| 主题 / 字号 / 侧栏 / 最近文件 / 滚动位置 | `~/Library/Application Support/com.myreader.app/settings.json` | `%APPDATA%\com.myreader.app\settings.json` |
+| 窗口大小 / 位置 | `~/Library/Application Support/com.myreader.app/.window-state.json` | `%APPDATA%\com.myreader.app\.window-state.json` |
 
 删除上述文件即可恢复默认设置。
 
@@ -209,8 +253,10 @@ Rust 侧包含 78 个单元测试，覆盖解析、净化、图片路径、设�
 - 本地图片只加载 Markdown 中真实引用且存在的文件（缺失显示 alt 占位）。
 - 非法 UTF-8 文件以替换字符宽松解码；超过 32 MB 或含二进制内容的文件拒绝打开并显示错误页。
 - 公式与图片远多于 2000 个的极端文档未做懒渲染（当前策略为全部公式在 reveal 前渲染）。
-- 仅构建并验证本机 arm64 架构，未提供 Universal 二进制；Intel Mac 需自行交叉构建。
+- 仅构建并验证 macOS 本机 arm64 架构，未提供 Universal 二进制；Intel Mac 需自行交叉构建。
+- Windows 版本已做代码与打包适配，并提供 GitHub Actions 构建；仍需在 Windows 真机完成人工验收。
 - 未做 Apple Developer ID 签名与公证，分发给他人时需处理 Gatekeeper 提示（见下节）。
+- Windows 安装包未做代码签名，首次运行可能出现 SmartScreen「未知发布者」提示，选择「更多信息 → 仍要运行」。
 
 ## 验收素材
 
@@ -230,7 +276,7 @@ Rust 侧包含 78 个单元测试，覆盖解析、净化、图片路径、设�
 3. 编辑任意 md 写入 `<script>alert(1)</script>`、`[x](javascript:alert(1))`、
    `$\href{javascript:alert(1)}{x}$`，确认不执行、不跳转；
 4. 退出后重新打开同一篇长文：窗口出现即在记忆的滚动位置；
-5. 依次验证拖拽、⌘O、Finder 双击三种打开方式；
+5. 依次验证拖拽、⌘O / Ctrl+O、Finder / 资源管理器双击三种打开方式；
 6. 「显示 → 外观」切换三态并重启验证持久化；切换系统深浅色验证实时跟随；
 7. 冷启动录屏逐帧检查：首帧即完整正文、深色系统无白闪、含公式文档无 LaTeX 原文跳变。
 

@@ -97,6 +97,15 @@ mod tests {
         );
     }
 
+    /// Windows 文件关联把参数以 `C:\docs\a.md` 形式传入，不能被当成选项丢掉。
+    #[test]
+    fn keeps_windows_style_absolute_path() {
+        assert_eq!(
+            initial_path_from_args(args(&["C:\\docs\\a.md"])),
+            Some(PathBuf::from("C:\\docs\\a.md"))
+        );
+    }
+
     #[test]
     fn pending_path_is_consumed_once() {
         let state = StartupState::new(Some(PathBuf::from("/tmp/a.md")));

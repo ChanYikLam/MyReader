@@ -35,12 +35,16 @@ pub struct ImageResource {
 
 /// 解析文档里出现的全部图片（按文档顺序）。
 pub fn resolve_images(document_path: &Path, srcs: &[String]) -> Vec<ImageResource> {
+    // 相对文档路径（无父目录）时以当前工作目录为基准；Windows 上没有 "/" 根。
     let document_dir = document_path
         .parent()
         .filter(|dir| !dir.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("/"));
+        .map(Path::to_path_buf)
+        .or_else(|| std::env::current_dir().ok());
     // 必须用目录 URL（带结尾斜杠），否则 join 会把最后一级目录替换掉。
-    let base_url = Url::from_directory_path(document_dir).ok();
+    let base_url = document_dir
+        .as_deref()
+        .and_then(|dir| Url::from_directory_path(dir).ok());
 
     srcs.iter()
         .map(|src| resolve_image(src, base_url.as_ref()))
@@ -81,7 +85,14 @@ fn resolve_image(src: &str, base_url: Option<&Url>) -> ImageResource {
     let Some(base) = base_url else {
         return unsupported;
     };
-    let Ok(joined) = base.join(trimmed) else {
+    // Windows 上 Markdown 常用反斜杠写图片路径（如 images\a.png）；
+    // 直接交给 URL join 会被当成非法字符，先归一为正斜杠。
+    let relative = if cfg!(windows) {
+        trimmed.replace('\\', "/")
+    } else {
+        trimmed.to_string()
+    };
+    let Ok(joined) = base.join(&relative) else {
         return unsupported;
     };
     let Ok(path) = joined.to_file_path() else {
@@ -186,7 +197,11 @@ mod tests {
         assert_eq!(resources[0].width, Some(1));
         assert_eq!(resources[0].height, Some(1));
         let resolved = resources[0].path.as_deref().expect("本地图片应有路径");
-        assert!(resolved.ends_with("images/one.png"), "path={resolved}");
+        // 用 Path 比较，避免 Windows 反斜杠导致字符串断言失败。
+        assert!(
+            Path::new(resolved).ends_with(Path::new("images").join("one.png")),
+            "path={resolved}"
+        );
     }
 
     #[test]
@@ -200,6 +215,20 @@ mod tests {
             &dir.path().join("docs/doc.md"),
             &["../shared.png".to_string()],
         );
+
+        assert_eq!(resources[0].kind, ImageKind::Local);
+        assert!(resources[0].exists);
+    }
+
+    /// Windows 上常见 `images\a.png` 写法，解析前要归一为正斜杠。
+    #[cfg(windows)]
+    #[test]
+    fn resolves_backslash_relative_image_path() {
+        let dir = TempDir::new();
+        std::fs::create_dir_all(dir.path().join("images")).unwrap();
+        std::fs::write(dir.path().join("images/one.png"), SMALL_PNG).unwrap();
+
+        let resources = resolve_images(&document_path(&dir), &["images\\one.png".to_string()]);
 
         assert_eq!(resources[0].kind, ImageKind::Local);
         assert!(resources[0].exists);

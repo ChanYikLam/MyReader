@@ -180,3 +180,15 @@ defaults write com.apple.WindowManager GloballyEnabled -bool true && killall Doc
 | 12/13 | §7 | 窗口截图 + 交互 |
 | 14 | §8 | 帧号计时 |
 | 15 | §9 | Finder 实测 |
+
+## Windows 附加验收
+
+在 Windows 10/11 上安装 `src-tauri/target/release/bundle/nsis/MyReader_0.1.0_x64-setup.exe` 后检查：
+
+1. 启动不黑屏：`http://tauri.localhost` 的首屏导航未被守卫拦截，窗口 reveal 后是完整正文。
+2. 文件关联：资源管理器中双击 `.md` 由 MyReader 打开；应用已运行时再次双击，复用同一窗口并载入新文件（单实例转发）。
+3. 标题栏显示当前文件名，且不含 `\\?\` 前缀；最近文件列表中的路径同样正常。
+4. 含 `images\a.png` 反斜杠图片路径的文档能正常加载本地图片。
+5. 快捷键：Ctrl+O 打开、Ctrl+B 侧栏、Ctrl+= / Ctrl+- / Ctrl+0 字号。
+6. 菜单「帮助 → 关于」弹出带版本号的信息框；「文件 → 退出」可退出应用。
+7. 深色模式跟随系统、窗口大小位置记忆、拖拽打开、高 DPI 缩放显示正常。

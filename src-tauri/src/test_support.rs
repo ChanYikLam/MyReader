@@ -11,6 +11,12 @@ static TEMP_DIR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 #[derive(Debug)]
 pub struct TempDir(PathBuf);
 
+impl Default for TempDir {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TempDir {
     pub fn new() -> Self {
         let sequence = TEMP_DIR_SEQUENCE.fetch_add(1, Ordering::Relaxed);

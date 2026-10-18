@@ -66,9 +66,17 @@ pub fn create_main_window(
         .theme(state.theme_mode.native_theme())
         // 导航守卫：应用内只允许本地页面；外链一律由前端拦截后交给
         // 系统浏览器，绝不在应用内跳转（SPEC §12/§13）。
+        //
+        // 平台差异：macOS 的应用页面走 `tauri://localhost`，Windows 的
+        // WebView2 把自定义协议映射为 `http://tauri.localhost`（见
+        // tauri::protocol::origin）。只放行 localhost / 127.0.0.1 会把
+        // Windows 的首次加载也拦掉，表现为黑屏。
         .on_navigation(|url| match url.scheme() {
             "tauri" => true,
-            "http" | "https" => matches!(url.host_str(), Some("localhost") | Some("127.0.0.1")),
+            "http" | "https" => matches!(
+                url.host_str(),
+                Some("localhost") | Some("127.0.0.1") | Some("tauri.localhost")
+            ),
             _ => false,
         })
         .build()?;

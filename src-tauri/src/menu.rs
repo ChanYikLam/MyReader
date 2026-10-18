@@ -31,43 +31,67 @@ pub fn rebuild(app: &AppHandle) {
 /// 构建并安装原生菜单（SPEC §12）。
 ///
 /// `theme_mode` 决定「显示 → 外观」的勾选状态；最近文件从 store 读取。
-/// macOS 上第一个子菜单是应用菜单（必须以应用名命名）。
+/// macOS 上第一个子菜单是应用菜单（必须以应用名命名）；Windows / Linux
+/// 没有系统级应用菜单，关于与退出分别放进「帮助」和「文件」菜单。
 pub fn install(app: &AppHandle, theme_mode: ThemeMode) -> tauri::Result<()> {
-    let separator = PredefinedMenuItem::separator(app)?;
     let recent = settings::load_recent(app);
-
-    // 应用菜单
-    let about = PredefinedMenuItem::about(app, Some("关于 MyReader"), None)?;
-    let hide = PredefinedMenuItem::hide(app, None)?;
-    let hide_others = PredefinedMenuItem::hide_others(app, None)?;
-    let show_all = PredefinedMenuItem::show_all(app, None)?;
-    let quit = PredefinedMenuItem::quit(app, Some("退出 MyReader"))?;
-    let app_menu = Submenu::with_items(
-        app,
-        "MyReader",
-        true,
-        &[
-            &about,
-            &separator,
-            &hide,
-            &hide_others,
-            &show_all,
-            &separator,
-            &quit,
-        ],
-    )?;
 
     // 文件菜单（含动态「打开最近」）
     let open = MenuItem::with_id(app, MENU_FILE_OPEN, "打开…", true, Some("CmdOrCtrl+O"))?;
     let close_window =
         MenuItem::with_id(app, MENU_FILE_CLOSE, "关闭窗口", true, Some("CmdOrCtrl+W"))?;
     let recent_menu = build_recent_menu(app, &recent)?;
+    let file_separator = PredefinedMenuItem::separator(app)?;
+    let quit = PredefinedMenuItem::quit(app, Some("退出 MyReader"))?;
+
+    #[cfg(target_os = "macos")]
     let file_menu = Submenu::with_items(
         app,
         "文件",
         true,
-        &[&open, &recent_menu, &separator, &close_window],
+        &[&open, &recent_menu, &file_separator, &close_window],
     )?;
+    #[cfg(not(target_os = "macos"))]
+    let file_menu = Submenu::with_items(
+        app,
+        "文件",
+        true,
+        &[&open, &recent_menu, &file_separator, &close_window, &quit],
+    )?;
+
+    // 应用菜单：仅 macOS 有系统级应用菜单（含关于/隐藏/退出）。
+    // Windows 上 hide_others / show_all 在 muda 中是空操作，不能放进去。
+    #[cfg(target_os = "macos")]
+    let app_menu = {
+        let about = PredefinedMenuItem::about(app, Some("关于 MyReader"), None)?;
+        let hide = PredefinedMenuItem::hide(app, None)?;
+        let hide_others = PredefinedMenuItem::hide_others(app, None)?;
+        let show_all = PredefinedMenuItem::show_all(app, None)?;
+        let separator = PredefinedMenuItem::separator(app)?;
+        Submenu::with_items(
+            app,
+            "MyReader",
+            true,
+            &[
+                &about,
+                &separator,
+                &hide,
+                &hide_others,
+                &show_all,
+                &separator,
+                &quit,
+            ],
+        )?
+    };
+
+    // 帮助菜单：非 macOS 平台的「关于」入口。
+    // muda 在 Windows 上只有带 metadata 的 about 才会弹消息框，
+    // 传 None 时点击无反应，因此这里必须提供 AboutMetadata。
+    #[cfg(not(target_os = "macos"))]
+    let help_menu = {
+        let about = PredefinedMenuItem::about(app, Some("关于 MyReader"), Some(about_metadata()))?;
+        Submenu::with_items(app, "帮助", true, &[&about])?
+    };
 
     // 编辑菜单：只读阅读器也需要复制/全选
     let copy = PredefinedMenuItem::copy(app, None)?;
@@ -114,55 +138,85 @@ pub fn install(app: &AppHandle, theme_mode: ThemeMode) -> tauri::Result<()> {
         Some("CmdOrCtrl+B"),
     )?;
     // 字号快捷键由前端 keydown 统一处理（覆盖 Shift 变体/小键盘，并阻止
-    // WebKit 页面缩放）；菜单项只做可发现入口。
-    let font_increase = MenuItem::with_id(
-        app,
-        MENU_FONT_INCREASE,
-        "增大字号（⌘+）",
-        true,
-        None::<&str>,
-    )?;
-    let font_decrease = MenuItem::with_id(
-        app,
-        MENU_FONT_DECREASE,
-        "减小字号（⌘-）",
-        true,
-        None::<&str>,
-    )?;
-    let font_reset = MenuItem::with_id(app, MENU_FONT_RESET, "实际大小（⌘0）", true, None::<&str>)?;
+    // WebView 页面缩放）；菜单项只做可发现入口。提示文案按平台使用 ⌘ 或 Ctrl。
+    #[cfg(target_os = "macos")]
+    let (increase_label, decrease_label, reset_label) =
+        ("增大字号（⌘+）", "减小字号（⌘-）", "实际大小（⌘0）");
+    #[cfg(not(target_os = "macos"))]
+    let (increase_label, decrease_label, reset_label) = (
+        "增大字号（Ctrl+=）",
+        "减小字号（Ctrl+-）",
+        "实际大小（Ctrl+0）",
+    );
+    let font_increase =
+        MenuItem::with_id(app, MENU_FONT_INCREASE, increase_label, true, None::<&str>)?;
+    let font_decrease =
+        MenuItem::with_id(app, MENU_FONT_DECREASE, decrease_label, true, None::<&str>)?;
+    let font_reset = MenuItem::with_id(app, MENU_FONT_RESET, reset_label, true, None::<&str>)?;
+    let view_separator = PredefinedMenuItem::separator(app)?;
     let view_menu = Submenu::with_items(
         app,
         "显示",
         true,
         &[
             &appearance,
-            &separator,
+            &view_separator,
             &toggle_sidebar,
-            &separator,
+            &view_separator,
             &font_increase,
             &font_decrease,
             &font_reset,
         ],
     )?;
 
-    // 窗口菜单
+    // 窗口菜单：Bring All to Front 仅 macOS 有效；Windows 上不放。
     let minimize = PredefinedMenuItem::minimize(app, None)?;
     let zoom = PredefinedMenuItem::maximize(app, None)?;
-    let bring_all_to_front = PredefinedMenuItem::bring_all_to_front(app, None)?;
-    let window_menu = Submenu::with_items(
-        app,
-        "窗口",
-        true,
-        &[&minimize, &zoom, &separator, &bring_all_to_front],
-    )?;
+    #[cfg(target_os = "macos")]
+    let window_menu = {
+        let separator = PredefinedMenuItem::separator(app)?;
+        let bring_all_to_front = PredefinedMenuItem::bring_all_to_front(app, None)?;
+        Submenu::with_items(
+            app,
+            "窗口",
+            true,
+            &[&minimize, &zoom, &separator, &bring_all_to_front],
+        )?
+    };
+    #[cfg(not(target_os = "macos"))]
+    let window_menu = Submenu::with_items(app, "窗口", true, &[&minimize, &zoom])?;
 
+    #[cfg(target_os = "macos")]
     let menu = Menu::with_items(
         app,
         &[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu],
     )?;
+    #[cfg(not(target_os = "macos"))]
+    let menu = Menu::with_items(
+        app,
+        &[&file_menu, &edit_menu, &view_menu, &window_menu, &help_menu],
+    )?;
     app.set_menu(menu)?;
 
     Ok(())
+}
+
+/// 非 macOS「关于」对话框的内容。
+#[cfg(not(target_os = "macos"))]
+fn about_metadata() -> tauri::menu::AboutMetadata<'static> {
+    tauri::menu::AboutMetadata {
+        name: Some("MyReader".into()),
+        version: Some(env!("CARGO_PKG_VERSION").into()),
+        short_version: None,
+        authors: None,
+        comments: Some("只读 Markdown 阅读器".into()),
+        copyright: None,
+        license: Some("MIT".into()),
+        website: None,
+        website_label: None,
+        credits: None,
+        icon: None,
+    }
 }
 
 /// 动态「打开最近」子菜单（最多 10 条 + 清除）。

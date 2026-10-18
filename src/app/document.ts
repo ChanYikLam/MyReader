@@ -1,4 +1,5 @@
 import { setWindowTitle } from "./ipc";
+import { shortcutHint } from "./platform";
 import type { AppErrorPayload, DocumentPayload, RecentFile } from "./types";
 
 const APP_NAME = "MyReader";
@@ -85,7 +86,7 @@ export function renderWelcome(
 
   const hint = document.createElement("p");
   hint.className = "welcome-hint";
-  hint.textContent = "使用「文件 → 打开…」（⌘O）选择 Markdown 文件";
+  hint.textContent = `使用「文件 → 打开…」（${shortcutHint("O")}）选择 Markdown 文件`;
 
   section.append(title, subtitle, hint);
 

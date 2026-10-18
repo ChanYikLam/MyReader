@@ -1,11 +1,12 @@
 /**
- * 字号控制（SPEC §18 A9）：13–24px，⌘+/⌘-/⌘0 由原生菜单驱动，
+ * 字号控制（SPEC §18 A9）：13–24px，主修饰键 + = / - / 0 由前端统一处理，
  * 设置值由 Rust 持久化，前端只负责应用到 CSS 变量。
  */
 
 import { listen } from "@tauri-apps/api/event";
 
 import { changeFontSize } from "./ipc";
+import { IS_MAC } from "./platform";
 
 export const MIN_FONT_SIZE = 13;
 export const MAX_FONT_SIZE = 24;
@@ -25,14 +26,17 @@ export function installFontSizeListener(): void {
 }
 
 /**
- * 安装 Cmd 字号快捷键（⌘= / ⌘+ / ⌘⇧= / 小键盘 + 增大，⌘- 减小，⌘0 复位）。
+ * 安装字号快捷键（macOS：⌘= / ⌘+ / ⌘⇧= / 小键盘 + 增大，⌘- 减小，⌘0 复位；
+ * Windows：Ctrl 对应组合）。
  *
  * 由前端统一处理而不是菜单 accelerator：既覆盖 Shift 变体/小键盘，
- * 又能 preventDefault 阻止 WebKit 的页面缩放（否则与字号调节冲突）。
+ * 又能 preventDefault 阻止 WebView 的页面缩放（否则与字号调节冲突）。
  */
 export function installFontSizeShortcuts(): void {
   window.addEventListener("keydown", (event) => {
-    if (!event.metaKey || event.ctrlKey || event.altKey) {
+    const primaryModifier = IS_MAC ? event.metaKey : event.ctrlKey;
+    const secondaryModifier = IS_MAC ? event.ctrlKey : event.metaKey;
+    if (!primaryModifier || secondaryModifier || event.altKey) {
       return;
     }
 

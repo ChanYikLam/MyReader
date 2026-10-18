@@ -18,6 +18,28 @@ pub mod theme;
 
 use tauri::{Emitter, Manager};
 
+/// 把「打开文件」请求交给前端；启动期只暂存，不提前 show（SPEC §9.5）。
+///
+/// 三个来源共用：macOS 的 `RunEvent::Opened`、Windows 的单实例参数转发、
+/// 运行期菜单/拖拽。前端在 bootstrap 或 `open-file` 事件里消费。
+fn reveal_and_open(app: &tauri::AppHandle, path: std::path::PathBuf) {
+    // 先暂存，保证前端启动稍晚也能在 bootstrap 里取到。
+    if let Some(startup_state) = app.try_state::<state::StartupState>() {
+        startup_state.set_pending_open_path(path.clone());
+    }
+
+    if let Some(window) = app.get_webview_window("main") {
+        let revealed = app
+            .try_state::<state::WindowState>()
+            .is_some_and(|window_state| window_state.is_revealed());
+        if revealed {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        let _ = window.emit("open-file", path.display().to_string());
+    }
+}
+
 /// 把 panic 信息写入启动诊断日志（launchd 启动的应用 stderr 不可见）。
 fn install_panic_logger() {
     std::panic::set_hook(Box::new(|info| {
@@ -42,6 +64,16 @@ pub fn run() {
         state::StartupState::new(state::initial_path_from_args(std::env::args().skip(1)));
 
     let app = tauri::Builder::default()
+        // 单实例必须是第一个插件：Windows 双击关联文件会启动新进程，
+        // 由它将命令行参数转发给已经运行的窗口。
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if let Some(path) = state::initial_path_from_args(argv.into_iter().skip(1)) {
+                reveal_and_open(app, path);
+            } else if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -111,23 +143,7 @@ pub fn run() {
             let Some(path) = urls.iter().find_map(|url| url.to_file_path().ok()) else {
                 return;
             };
-
-            // 先暂存，保证前端启动稍晚也能在 bootstrap 里取到。
-            if let Some(startup_state) = app_handle.try_state::<state::StartupState>() {
-                startup_state.set_pending_open_path(path.clone());
-            }
-
-            if let Some(window) = app_handle.get_webview_window("main") {
-                // 启动阶段（尚未 reveal）不提前显示，避免破坏首帧完整性。
-                let revealed = app_handle
-                    .try_state::<state::WindowState>()
-                    .is_some_and(|window_state| window_state.is_revealed());
-                if revealed {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-                let _ = window.emit("open-file", path.display().to_string());
-            }
+            reveal_and_open(app_handle, path);
         }
         // 点击 Dock 图标 / 窗口被隐藏后重新激活。
         tauri::RunEvent::Reopen { .. } => {

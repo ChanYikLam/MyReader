@@ -1,7 +1,7 @@
 [package]
 name = "myreader"
 version = "0.1.0"
-description = "只读的 macOS Markdown 阅读器"
+description = "只读的跨平台（macOS / Windows）Markdown 阅读器"
 edition = "2021"
 
 [lib]
@@ -37,6 +37,11 @@ tauri-plugin-opener = "2.7"
 tauri-plugin-store = "2.5"
 # 窗口大小/位置记忆：多显示器、缩放、最大化等边界由插件处理，手写易错。
 tauri-plugin-window-state = "2.5"
+# Windows 文件关联双击会启动新进程；单实例插件把参数转发给已经运行的窗口。
+tauri-plugin-single-instance = "2"
+# Windows 的 std::fs::canonicalize 返回 `\\?\C:\...` 前缀路径；dunce 在可能时
+# 去掉该前缀，避免污染窗口标题、最近文件 key 与 asset 协议 URL。
+dunce = "1"
 
 [profile.dev]
 incremental = true
