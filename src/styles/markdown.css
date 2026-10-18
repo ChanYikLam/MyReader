@@ -172,14 +172,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   border: 1px dashed var(--border);
 }
 
 .markdown-body .image-frame--missing::after {
+  max-width: 80%;
   padding: 0 1em;
   font-size: 0.9em;
   color: var(--fg-muted);
   text-align: center;
+  overflow-wrap: anywhere;
   content: attr(data-alt);
 }
 

@@ -197,9 +197,12 @@ function prepareLocalImage(img: HTMLImageElement, resource: ImageResource): void
 
 /** 缺失/不支持的图片：固定比例占位盒 + alt 文案。 */
 function decorateMissing(img: HTMLImageElement, alt: string): void {
-  img.removeAttribute("src");
-  const frame = wrapImageFrame(img, true);
+  // 直接移除 <img>：损坏图标会把 alt 文本画在占位框外（溢出/裁切），
+  // 改为由占位框的 ::after 统一展示 alt 文案。
+  const frame = document.createElement("span");
+  frame.className = "image-frame image-frame--missing";
   frame.dataset.alt = alt.length > 0 ? alt : "图片无法显示";
+  img.replaceWith(frame);
 }
 
 function wrapImageFrame(img: HTMLImageElement, missing = false): HTMLElement {
