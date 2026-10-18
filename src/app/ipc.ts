@@ -68,6 +68,11 @@ export async function saveScroll(
   await invoke("save_scroll", { path, top, docHeight, viewportWidth });
 }
 
+/** 设置主题三态（system/light/dark），Rust 侧持久化并广播。 */
+export async function setThemeMode(mode: ThemeMode): Promise<void> {
+  await invoke("set_theme_mode", { mode });
+}
+
 /** 持久化侧栏开合状态。 */
 export async function setSidebarOpen(open: boolean): Promise<void> {
   await invoke("set_sidebar_open", { open });

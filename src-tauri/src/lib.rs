@@ -45,7 +45,17 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // 关键：窗口可见性由前端 reveal 门禁唯一控制（SPEC §9.5）。
+        // window-state 默认会恢复 visible 并在创建时 show()，绕过门禁导致
+        // 首帧先出现空白窗口；这里只恢复尺寸/位置等，不恢复可见性。
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::all()
+                        & !tauri_plugin_window_state::StateFlags::VISIBLE,
+                )
+                .build(),
+        )
         // 在 build 阶段注册状态：RunEvent::Opened 可能在 setup 之前到达。
         .manage(startup_state)
         .manage(state::WindowState::default())
@@ -78,6 +88,7 @@ pub fn run() {
             commands::set_sidebar_open,
             commands::save_scroll,
             commands::change_font_size,
+            commands::set_theme_mode,
         ])
         .build(tauri::generate_context!())
         .expect("MyReader 初始化失败");

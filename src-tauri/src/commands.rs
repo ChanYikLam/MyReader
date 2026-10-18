@@ -87,6 +87,29 @@ fn finish_document_load(app: &tauri::AppHandle, document: &mut DocumentPayload) 
     register_image_scopes(app, document);
 }
 
+/// 切换主题三态（UI 按钮调用）：持久化 → 原生标题栏 → 广播 → 菜单勾选同步。
+#[tauri::command]
+pub fn set_theme_mode(
+    app: tauri::AppHandle,
+    window: WebviewWindow,
+    mode: String,
+) -> Result<(), AppError> {
+    let theme_mode = settings::ThemeMode::parse(&mode).ok_or_else(|| AppError::Internal {
+        detail: format!("未知主题模式：{mode}"),
+    })?;
+
+    settings::save_theme_mode(&app, theme_mode)?;
+    if let Err(error) = window.set_theme(theme_mode.native_theme()) {
+        diagnostics::boot_log(&format!(
+            "theme-native-error mode={} detail={error}",
+            theme_mode.as_str()
+        ));
+    }
+    let _ = window.emit("theme-changed", theme_mode.as_str());
+    crate::menu::rebuild(&app);
+    Ok(())
+}
+
 /// 菜单/键盘快捷键共用的字号调整：delta=0 表示恢复默认字号。
 ///
 /// 返回并广播新字号，前端只负责应用到 CSS 变量（持久化在 Rust 侧）。

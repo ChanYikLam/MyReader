@@ -10,10 +10,11 @@
 
 import { listen } from "@tauri-apps/api/event";
 
-import { setWindowBackground } from "./ipc";
+import { setThemeMode, setWindowBackground } from "./ipc";
 import type { ThemeMode } from "./ipc";
 
 const DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)";
+const THEME_TOGGLE_ID = "theme-toggle";
 
 let currentMode: ThemeMode = readInitialMode();
 
@@ -50,8 +51,61 @@ export function installThemeListener(): void {
     const mode = normalizeThemeMode(event.payload);
     if (mode !== null) {
       applyThemeMode(mode);
+      updateThemeToggle();
     }
   });
+}
+
+const THEME_ORDER: ThemeMode[] = ["system", "light", "dark"];
+const THEME_ICON: Record<ThemeMode, string> = {
+  system: "◐",
+  light: "☀",
+  dark: "☾",
+};
+const THEME_LABEL: Record<ThemeMode, string> = {
+  system: "跟随系统",
+  light: "浅色",
+  dark: "深色",
+};
+
+/** 安装固定的深浅模式切换按钮（首帧起可见，点击循环 系统→浅色→深色）。 */
+export function installThemeToggle(): void {
+  if (document.getElementById(THEME_TOGGLE_ID) !== null) {
+    updateThemeToggle();
+    return;
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.id = THEME_TOGGLE_ID;
+  button.className = "theme-toggle";
+  button.addEventListener("click", () => {
+    void cycleThemeMode();
+  });
+  document.body.append(button);
+  updateThemeToggle();
+}
+
+/** 按 系统 → 浅色 → 深色 → 系统 循环切换。 */
+export async function cycleThemeMode(): Promise<void> {
+  const current = readInitialMode();
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(current) + 1) % THEME_ORDER.length] ?? "system";
+  try {
+    await setThemeMode(next);
+  } catch (error) {
+    console.error("切换主题失败", error);
+  }
+}
+
+function updateThemeToggle(): void {
+  const button = document.getElementById(THEME_TOGGLE_ID);
+  if (button === null) {
+    return;
+  }
+  const mode = readInitialMode();
+  button.textContent = THEME_ICON[mode];
+  button.title = `外观：${THEME_LABEL[mode]}（点击切换）`;
+  button.setAttribute("aria-label", button.title);
 }
 
 function readInitialMode(): ThemeMode {

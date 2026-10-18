@@ -106,6 +106,30 @@
         margin: 0 auto;
         padding: 56px 40px 120px;
       }
+      /* 深浅模式切换按钮（固定右上角，首帧即可见） */
+      .theme-toggle {
+        position: fixed;
+        top: 16px;
+        right: 14px;
+        z-index: 12;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        font-family: var(--font-body);
+        font-size: 15px;
+        line-height: 1;
+        color: var(--fg-muted);
+        cursor: pointer;
+        background: var(--bg-muted);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .theme-toggle:hover {
+        color: var(--fg);
+      }
     </style>
   </head>
   <body>
