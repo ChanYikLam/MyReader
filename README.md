@@ -15,6 +15,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.1.0-green)](#)
+[![GitHub](https://img.shields.io/badge/GitHub-ChanYikLam%2FMyReader-181717?logo=github&logoColor=white)](https://github.com/ChanYikLam/MyReader)
+[![CNB](https://img.shields.io/badge/CNB-YukinoNO1%2FMyReader-1A7AF8)](https://cnb.cool/YukinoNO1/MyReader)
 
 [特性](#特性) · [快速开始](#快速开始) · [使用](#使用) · [技术栈](#技术栈) ·
 [架构](#架构与项目结构) · [已知限制](#已知限制) · [许可证](#许可证)
@@ -78,6 +80,7 @@
 
 ```bash
 git clone https://github.com/ChanYikLam/MyReader.git
+# CNB 镜像：git clone https://cnb.cool/YukinoNO1/MyReader.git
 cd MyReader
 
 npm install
