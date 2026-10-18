@@ -321,3 +321,10 @@
   display: block;
   margin: 0.4em 0 0;
 }
+
+/* sanitize 后无 href 的锚点（危险协议被剥离）按纯文本展示，避免"假链接"观感 */
+.markdown-body a:not([href]) {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+}

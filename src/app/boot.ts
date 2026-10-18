@@ -2,12 +2,12 @@ import { renderDocument, renderError, renderWelcome } from "./document";
 import type { DocumentPayload } from "./types";
 import { installHighlightStyles } from "./highlight";
 import { prepareImages } from "./images";
-import { renderMath, warmUpMathFonts } from "./math";
+import { awaitFontsReady, renderMath, startFontWarmup } from "./math";
 import { buildSidebar, clearSidebar, installSidebarListener } from "./outline";
 import { installScrollSaver, restoreScrollForDocument } from "./scroll";
 import { installFontSizeListener, installFontSizeShortcuts } from "./typography";
 import { installLinkHandler } from "./links";
-import { installThemeListener } from "./theme";
+import { installThemeListener, installThemeToggle } from "./theme";
 import { fetchBootstrap, reportBootEvent } from "./ipc";
 import {
   installDragDropListener,
@@ -102,9 +102,13 @@ export async function boot(): Promise<void> {
     }),
   );
 
+  const warmedFaces = startFontWarmup();
+  reportBootEvent("fonts-warmup-start", elapsedMs(), JSON.stringify({ faces: warmedFaces }));
+
   installRevealWatchdog();
   installLinkHandler();
   installThemeListener();
+  installThemeToggle();
   installFontSizeListener();
   installFontSizeShortcuts();
   installSidebarListener();
@@ -125,19 +129,26 @@ export async function boot(): Promise<void> {
 
   try {
     const startup = await fetchBootstrap();
+    reportBootEvent(
+      "bootstrap-done",
+      elapsedMs(),
+      JSON.stringify({ hasDocument: startup.initialDocument !== null }),
+    );
     installHighlightStyles(startup.highlightCss);
     startupDocument = startup.initialDocument;
 
     if (startup.initialDocument !== null) {
       const article = renderDocument(startup.initialDocument);
+      reportBootEvent("document-rendered", elapsedMs());
       buildSidebar(startup.initialDocument);
+      reportBootEvent("sidebar-ready", elapsedMs());
 
       // 全部公式在 reveal 前同步渲染（SPEC §9.3 决策）：
       // 高度确定 → 滚动恢复精确、之后滚动条长度不跳变。
       const mathStats = renderMath(article);
       reportBootEvent("math-ready", elapsedMs(), JSON.stringify(mathStats));
       if (mathStats.total > 0) {
-        const fontStats = await warmUpMathFonts();
+        const fontStats = await awaitFontsReady();
         reportBootEvent("math-fonts", elapsedMs(), JSON.stringify(fontStats));
       }
 

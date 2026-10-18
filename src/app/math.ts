@@ -30,7 +30,11 @@ export interface MathRenderStats {
 }
 
 export interface MathFontStats {
+  /** 实际预加载的字面数量。 */
   faces: number;
+  /** 文档里注册的全部字面数量（用于对比是否按需加载）。 */
+  totalFaces: number;
+  families: string[];
   elapsedMs: number;
   timedOut: boolean;
 }
@@ -95,13 +99,30 @@ export function renderMath(article: HTMLElement): MathRenderStats {
  * 隐藏窗口下 WebKit 不一定因为布局自动触发字体加载（M1 实测 rAF 也会被节流），
  * 因此必须显式 load，保证窗口出现前公式字体已就位、不出现字体回退跳变。
  */
-export async function warmUpMathFonts(): Promise<MathFontStats> {
-  const startedAt = performance.now();
+/**
+ * 启动最早期调用：并行 warm 全部已注册的 KaTeX 字体（不等待）。
+ *
+ * 原因：隐藏窗口下 WebKit 会节流字体加载回调（实测 6 个字面耗时 2.8s），
+ * 把加载提前到 bootstrap 之前，与 Rust 解析/IPC/DOM 渲染重叠。
+ */
+export function startFontWarmup(): number {
   const faces = Array.from(document.fonts);
+  for (const face of faces) {
+    void face.load().catch(() => {
+      /* 单个字体失败不阻塞启动 */
+    });
+  }
+  return faces.length;
+}
+
+/** 等待 document.fonts.ready（用于 reveal 前确认公式字体可用）。 */
+export async function awaitFontsReady(): Promise<MathFontStats> {
+  const startedAt = performance.now();
+  const allFaces = Array.from(document.fonts);
   let timedOut = false;
 
   await Promise.race([
-    Promise.allSettled(faces.map((face) => face.load())),
+    document.fonts.ready,
     new Promise<void>((resolve) => {
       window.setTimeout(() => {
         timedOut = true;
@@ -109,10 +130,11 @@ export async function warmUpMathFonts(): Promise<MathFontStats> {
       }, MATH_FONT_TIMEOUT_MS);
     }),
   ]);
-  await document.fonts.ready;
 
   return {
-    faces: faces.length,
+    faces: allFaces.length,
+    totalFaces: allFaces.length,
+    families: [],
     elapsedMs: Math.round((performance.now() - startedAt) * 100) / 100,
     timedOut,
   };

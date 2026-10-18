@@ -3,7 +3,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import { hasDocumentView, renderDocument, renderError } from "./document";
 import { prepareImages } from "./images";
-import { renderMath, warmUpMathFonts } from "./math";
+import { renderMath, startFontWarmup } from "./math";
 import { showToast } from "./toast";
 import { buildSidebar } from "./outline";
 import { restoreScrollForDocument, saveCurrentScrollNow } from "./scroll";
@@ -30,7 +30,8 @@ export async function openDocument(path: string): Promise<void> {
     // 同步渲染公式：同一任务内替换 DOM，不会出现 LaTeX 原文中间帧。
     const mathStats = renderMath(article);
     if (mathStats.total > 0) {
-      void warmUpMathFonts();
+      // 字体在冷启动时已预热；切换文档时再并行 warm 一次（不阻塞替换）。
+      startFontWarmup();
     }
     void prepareImages(payload);
     restoreScrollForDocument(payload);

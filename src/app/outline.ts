@@ -17,9 +17,14 @@ const MAX_OUTLINE_LEVEL = 3;
 const SIDEBAR_ID = "outline-sidebar";
 const TOGGLE_ID = "sidebar-toggle";
 
-let activeObserver: IntersectionObserver | null = null;
 let outlineItems = new Map<string, HTMLElement>();
+let headingEntries: Array<{ id: string; element: HTMLElement }> = [];
+/** 缓存标题的文档绝对偏移（在 reveal 后/尺寸变化时重算），滚动时二分查找。 */
+let headingOffsets: number[] = [];
+let activeId: string | null = null;
 let sidebarInstalled = false;
+let revealListenerInstalled = false;
+let scrollRefreshScheduled = false;
 /** 用户侧栏偏好：null = 未设置（按窗口宽度决定默认值）。 */
 let preferredOpen: boolean | null = window.__BOOT__?.sidebarOpen ?? null;
 
@@ -27,6 +32,7 @@ let preferredOpen: boolean | null = window.__BOOT__?.sidebarOpen ?? null;
 export function buildSidebar(payload: DocumentPayload): void {
   const app = requireApp();
   clearSidebar();
+  activeId = null;
 
   const headings = payload.headings.filter(
     (heading) => heading.level <= MAX_OUTLINE_LEVEL,
@@ -61,10 +67,16 @@ export function buildSidebar(payload: DocumentPayload): void {
   }
 
   outlineItems = new Map();
+  headingEntries = [];
   for (const heading of headings) {
     const item = createOutlineItem(heading);
     nav.append(item);
     outlineItems.set(heading.id, item);
+
+    const anchor = document.getElementById(heading.id);
+    if (anchor !== null) {
+      headingEntries.push({ id: heading.id, element: anchor });
+    }
   }
 
   sidebar.append(header, nav);
@@ -81,14 +93,13 @@ export function buildSidebar(payload: DocumentPayload): void {
   app.append(toggle);
 
   applyInitialVisibility();
-  installActiveHeadingObserver(headings);
+  installActiveHeadingObserver();
 }
 
 /** 移除侧栏与按钮（欢迎页/错误页使用）。 */
 export function clearSidebar(): void {
-  activeObserver?.disconnect();
-  activeObserver = null;
   outlineItems = new Map();
+  headingEntries = [];
 
   document.getElementById(SIDEBAR_ID)?.remove();
   document.getElementById(TOGGLE_ID)?.remove();
@@ -145,42 +156,102 @@ function scrollToHeading(id: string): void {
   target?.scrollIntoView({ block: "start" });
 }
 
-/** 滚动时高亮当前可见标题（首帧之后才安装，不参与首帧）。 */
-function installActiveHeadingObserver(headings: Heading[]): void {
-  if (headings.length === 0) {
-    return;
-  }
-
-  const elements = headings
-    .map((heading) => document.getElementById(heading.id))
-    .filter((element): element is HTMLElement => element !== null);
-  if (elements.length === 0) {
-    return;
-  }
-
-  activeObserver = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          const id = entry.target.id;
-          if (outlineItems.has(id)) {
-            setActiveItem(id);
-          }
+/**
+ * 首帧之后刷新一次高亮，然后由滚动驱动。
+ *
+ * 不用 IntersectionObserver 逐个观察：超大文档（数千标题）观察成本高，
+ * 且隐藏窗口期间回调不可靠。改为 reveal 后缓存标题绝对偏移，滚动时二分查找。
+ */
+function installActiveHeadingObserver(): void {
+  if (!revealListenerInstalled) {
+    revealListenerInstalled = true;
+    document.addEventListener(
+      "myreader:revealed",
+      () => {
+        refreshHeadingOffsets();
+        refreshActiveHeading();
+      },
+      { once: true },
+    );
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (scrollRefreshScheduled) {
+          return;
         }
-      }
-    },
-    { rootMargin: "-40% 0px -55% 0px", threshold: 0 },
-  );
-
-  for (const element of elements) {
-    activeObserver.observe(element);
+        scrollRefreshScheduled = true;
+        window.requestAnimationFrame(() => {
+          scrollRefreshScheduled = false;
+          refreshActiveHeading();
+        });
+      },
+      { passive: true },
+    );
+    window.addEventListener("resize", () => {
+      refreshHeadingOffsets();
+      refreshActiveHeading();
+    });
   }
 }
 
-function setActiveItem(id: string): void {
-  for (const [itemId, element] of outlineItems) {
-    element.classList.toggle("is-active", itemId === id);
+/** 缓存每个标题相对文档顶部的偏移（只在 reveal 后/尺寸变化时计算）。 */
+function refreshHeadingOffsets(): void {
+  const scrollY = window.scrollY;
+  headingOffsets = headingEntries.map(
+    ({ element }) => element.getBoundingClientRect().top + scrollY,
+  );
+}
+
+/** 按滚动位置二分查找当前章节（最后一个偏移不超过阈值的标题）。 */
+function refreshActiveHeading(): void {
+  if (headingEntries.length === 0) {
+    return;
   }
+  if (headingOffsets.length !== headingEntries.length) {
+    refreshHeadingOffsets();
+  }
+
+  const threshold = window.scrollY + 140;
+  let low = 0;
+  let high = headingOffsets.length - 1;
+  let candidate = 0;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if ((headingOffsets[mid] ?? 0) <= threshold) {
+      candidate = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  setActiveItem(headingEntries[candidate]?.id ?? "");
+}
+
+function setActiveItem(id: string): void {
+  if (activeId === id) {
+    return;
+  }
+  if (activeId !== null) {
+    outlineItems.get(activeId)?.classList.remove("is-active");
+  }
+  activeId = id;
+  const element = outlineItems.get(id);
+  if (element !== undefined) {
+    element.classList.add("is-active");
+    scrollNavItemIntoView(element);
+  }
+}
+
+/** 只在侧栏内部滚动，不带动正文（目录长时保持当前项可见）。 */
+function scrollNavItemIntoView(item: HTMLElement): void {
+  const nav = item.parentElement;
+  if (nav === null || nav.scrollHeight <= nav.clientHeight) {
+    return;
+  }
+  const itemRect = item.getBoundingClientRect();
+  const navRect = nav.getBoundingClientRect();
+  nav.scrollTop += itemRect.top - navRect.top - nav.clientHeight / 2;
 }
 
 function requireApp(): HTMLElement {

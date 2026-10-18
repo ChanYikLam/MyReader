@@ -1,7 +1,9 @@
 import { reportBootEvent, revealWindow } from "./ipc";
 
 /** 首帧看门狗：超时强制显示窗口，绝不把用户卡在不可见状态（SPEC §9.5）。 */
-const WATCHDOG_MS = 4000;
+// 首帧完整性优先：大文档（1MB+）内容准备可能超过 4 秒，
+// 看门狗只在真正卡死时兜底，避免"提前显示空白窗口"这种更严重的失败。
+const WATCHDOG_MS = 15000;
 
 let revealRequested = false;
 
@@ -32,6 +34,8 @@ export function requestReveal(reason: string): void {
   void revealWindow(resolvedTheme)
     .then(() => {
       document.documentElement.dataset.revealed = "true";
+      // 首帧后广播：隐藏窗口期间 IntersectionObserver 等可能未更新。
+      document.dispatchEvent(new CustomEvent("myreader:revealed"));
       reportBootEvent(
         "reveal-done",
         performance.now(),

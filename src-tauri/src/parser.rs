@@ -35,7 +35,11 @@ pub struct RenderedMarkdown {
 pub fn render_markdown(markdown: &str) -> RenderedMarkdown {
     let options = build_options();
     let arena = Arena::new();
-    let root = parse_document(&arena, markdown, &options);
+    // comrak 的 math_dollars 在 `$$...$$` 块内遇到「仅由 = 组成的一行」时会
+    // 退化解析成 setext 标题（真实文档矩阵换行排版常见）。这里做语义等价的
+    // 保护性改写，见 protect_display_math_equals。
+    let protected = protect_display_math_equals(markdown);
+    let root = parse_document(&arena, protected.as_ref(), &options);
 
     let headings = collect_headings(root);
     let images = collect_image_sources(root);
@@ -50,6 +54,11 @@ pub fn render_markdown(markdown: &str) -> RenderedMarkdown {
         html.clear();
     }
 
+    // 标题自带的 permalink 锚点（<a class="anchor">）在只读阅读器里没有用途，
+    // 且会让超大文档的 HTML/DOM 体积增加约 10–20%（标题越多越明显）。
+    // 大纲跳转使用标题 id，不依赖这些锚点。
+    let html = strip_heading_anchors(html);
+
     RenderedMarkdown {
         html,
         headings,
@@ -58,6 +67,115 @@ pub fn render_markdown(markdown: &str) -> RenderedMarkdown {
 }
 
 /// 构造 comrak 选项（SPEC §5 渲染管线）。
+/// 保护显示公式块内「仅由 = 组成的一行」：改写为语义等价的 `={}`。
+///
+/// comrak 0.56 的 math_dollars 对下面这种输入会解析失败（退化成 setext 标题）：
+///
+/// ```text
+/// $$
+/// \begin{pmatrix} a \\ b \end{pmatrix}
+/// =
+/// \begin{pmatrix} x \\ y \end{pmatrix}
+/// $$
+/// ```
+///
+/// 仅改写围栏代码块之外的显示公式区域；代码块内容保持原样。
+fn protect_display_math_equals(markdown: &str) -> std::borrow::Cow<'_, str> {
+    let mut output = String::with_capacity(markdown.len());
+    let mut fence: Option<&'static str> = None;
+    let mut in_display_math = false;
+    let mut changed = false;
+
+    for line in markdown.split_inclusive('\n') {
+        let trimmed_start = line.trim_start();
+
+        // 围栏代码块：进入后不再做任何改写（内容必须原样）。
+        if fence.is_none() && !in_display_math {
+            if trimmed_start.starts_with("```") {
+                fence = Some("```");
+            } else if trimmed_start.starts_with("~~~") {
+                fence = Some("~~~");
+            }
+        } else if let Some(active) = fence {
+            if trimmed_start.starts_with(active) {
+                fence = None;
+            }
+            output.push_str(line);
+            continue;
+        }
+
+        if fence.is_some() {
+            output.push_str(line);
+            continue;
+        }
+
+        if !in_display_math {
+            if trimmed_start.starts_with("$$") {
+                // 同一行内闭合（`$$ x $$`）不进入多行状态。
+                in_display_math = trimmed_start
+                    .strip_prefix("$$")
+                    .is_some_and(|rest| !rest.contains("$$"));
+            }
+            output.push_str(line);
+            continue;
+        }
+
+        // 显示公式内部：仅由 = 组成的行改写为 ={}。
+        if trimmed_start.trim_end_matches(['\r', '\n']).trim() == "=" {
+            output.push_str(&line.replacen('=', "={}", 1));
+            changed = true;
+        } else {
+            output.push_str(line);
+        }
+
+        if line.trim_end().ends_with("$$") {
+            in_display_math = false;
+        }
+    }
+
+    if changed {
+        std::borrow::Cow::Owned(output)
+    } else {
+        std::borrow::Cow::Borrowed(markdown)
+    }
+}
+
+/// 移除 comrak 为标题生成的 permalink 锚点：
+///
+/// ```html
+/// <h2 id="x">标题<a href="#x" aria-label="Link to heading 'x'"
+///   data-heading-content="x" class="anchor"></a></h2>
+/// ```
+///
+/// 只删除 `<a ... class="anchor"></a>` 这一段，标题 id 与文本保持原样。
+fn strip_heading_anchors(html: String) -> String {
+    const MARKER: &str = r#" class="anchor"></a>"#;
+
+    let mut output = String::with_capacity(html.len());
+    let mut rest = html.as_str();
+
+    while let Some(marker_pos) = rest.find(MARKER) {
+        // 从 marker 往前找最近的 "<a "，中间必须只有属性（不含 ">"）。
+        let before_marker = &rest[..marker_pos];
+        let Some(open_rel) = before_marker.rfind("<a ") else {
+            break;
+        };
+        let attributes = &before_marker[open_rel..];
+        if attributes.contains('>') {
+            // 不是简单锚点（异常结构），原样保留。
+            output.push_str(&rest[..marker_pos + MARKER.len()]);
+            rest = &rest[marker_pos + MARKER.len()..];
+            continue;
+        }
+
+        output.push_str(&rest[..open_rel]);
+        rest = &rest[marker_pos + MARKER.len()..];
+    }
+
+    output.push_str(rest);
+    output
+}
+
 fn build_options() -> Options<'static> {
     let mut options = Options::default();
 
@@ -344,5 +462,64 @@ mod tests {
 
         assert!(rendered.html.is_empty());
         assert!(rendered.headings.is_empty());
+    }
+
+    #[test]
+    fn bare_equals_line_inside_display_math_still_renders_math() {
+        let markdown = "$$\n\\begin{pmatrix}\na & b \\\\\nc & d\n\\end{pmatrix}\n=\n\\begin{pmatrix}\nx \\\\ y\n\\end{pmatrix}\n$$\n";
+        let rendered = render_markdown(markdown);
+        assert!(
+            rendered.html.contains(r#"data-math-style="display""#),
+            "html={}",
+            rendered.html
+        );
+        assert!(rendered.html.contains("pmatrix"));
+        assert!(
+            !rendered.html.contains("<h1"),
+            "应保持公式块而非 setext 标题"
+        );
+    }
+
+    #[test]
+    fn bare_equals_line_inside_code_fence_is_untouched() {
+        let markdown = "```text\n$$\n=\n$$\n```\n";
+        let rendered = render_markdown(markdown);
+        assert!(!rendered.html.contains("data-math-style"));
+        assert!(rendered.html.contains("\n=\n"));
+    }
+
+    #[test]
+    fn bare_equals_outside_math_keeps_markdown_semantics() {
+        // 普通段落后的 = 行仍是 setext 标题（Markdown 语义，不应被改写）。
+        let rendered = render_markdown("标题候选\n=\n");
+        assert!(rendered.html.contains("<h1"));
+    }
+
+    #[test]
+    fn strips_heading_permalink_anchors_but_keeps_ids() {
+        let rendered = render_markdown("## 二级 标题\n");
+        assert!(
+            rendered.html.contains(r#"id="二级-标题""#),
+            "html={}",
+            rendered.html
+        );
+        assert!(
+            !rendered.html.contains("class=\"anchor\""),
+            "html={}",
+            rendered.html
+        );
+        assert!(
+            !rendered.html.contains("data-heading-content"),
+            "html={}",
+            rendered.html
+        );
+        assert!(rendered.html.contains("二级 标题"));
+    }
+
+    #[test]
+    fn keeps_regular_links_intact() {
+        let rendered = render_markdown("[链接](https://example.com) 与 <https://example.com>\n");
+        assert!(rendered.html.contains("https://example.com"));
+        assert!(rendered.html.contains("<a "));
     }
 }
