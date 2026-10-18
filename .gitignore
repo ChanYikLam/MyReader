@@ -31,8 +31,7 @@ coverage/
 
 # ===== 日志 / 环境变量 =====
 *.log
-.env
-.env.*
+.env*
 !.env.example
 
 # ===== IDE（按需忽略） =====
