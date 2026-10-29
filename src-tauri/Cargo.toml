@@ -6,7 +6,9 @@ edition = "2021"
 
 [lib]
 name = "myreader_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# 仅桌面端（macOS / Windows）构建：默认的 rlib 已足够被 main.rs 链接。
+# staticlib / cdylib 是移动端打包才需要的产物；开启调试信息时 staticlib 单个
+# 文件约 350 MB，是开发期 target/ 体积膨胀的主因之一（见 size-budget.json）。
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -45,6 +47,14 @@ dunce = "1"
 
 [profile.dev]
 incremental = true
+# 完整调试信息（未配置时 debug 默认 true）是开发期 target/debug 体积的最大来源
+# （修复前本机实测约 2.5 GiB）。本 crate 保留行号表：panic 栈仍有「文件:行号」。
+debug = "line-tables-only"
+
+# 依赖占 target/debug 的绝大部分，其调试信息在应用排障中很少用到；全部关闭。
+# 需要单步调试第三方库时，把本表临时改成 debug = 2 后重建即可。
+[profile.dev.package."*"]
+debug = 0
 
 [profile.release]
 codegen-units = 1
