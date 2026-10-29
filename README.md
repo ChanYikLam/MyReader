@@ -157,6 +157,48 @@ cargo fmt   --manifest-path src-tauri/Cargo.toml -- --check
 Rust 侧包含 78 个单元测试，覆盖解析、净化、图片路径、设置、主题映射等纯函数逻辑；
 界面行为与首帧表现按 [docs/VERIFICATION.md](docs/VERIFICATION.md) 的手册人工验收。
 
+### 构建产物体积预算
+
+`src-tauri/target/` 曾在本机膨胀到 2.5 GiB 以上：dev profile 默认带完整调试信息，
+且 `[lib]` 同时产出移动端才需要的 `staticlib` / `cdylib` 拷贝（其中
+`libmyreader_lib.a` 单个文件就约 367 MB）。仓库现在有两层约束：
+
+1. **构建配置**（`src-tauri/Cargo.toml`）：
+   - dev profile 只保留行号级调试信息（`debug = "line-tables-only"`，panic 栈仍有
+     「文件:行号」），第三方依赖的调试信息全部关闭；
+   - `[lib]` 只产出桌面端需要的 `rlib`。
+
+   修复后 `target/debug` 干净构建约 1.13 GiB、含一次 `cargo test` 约 1.28 GiB、
+   跑完 clippy 门禁约 1.45 GiB（修复前干净构建约 2.55 GiB）。
+2. **体积上限**（`size-budget.json`）：各构建产物的硬上限，由
+   `scripts/check-size.mjs` 校验，超限时退出码为 1。Windows 打包 workflow（推送
+   `v*` tag 或手动 `workflow_dispatch`）会在测试与打包流程中强制执行；macOS 分发包
+   上限由本地 `npm run size` 校验。
+
+| 产物 | 上限 |
+|---|---|
+| 开发构建目录 `src-tauri/target/debug`（macOS / Windows） | 2 GiB / 3 GiB |
+| release 可执行文件（macOS / Windows） | 12 MiB / 16 MiB |
+| macOS `.app` | 12 MiB |
+| macOS `.dmg` | 8 MiB |
+| Windows NSIS 安装包 | 10 MiB |
+| Windows MSI 安装包 | 12 MiB |
+
+```bash
+npm run size            # 校验当前已存在的构建产物（未构建的自动跳过）
+npm run size:release    # 只校验 release 分发包
+npm run clean:rust      # 清理 target/，需要时回收磁盘
+```
+
+上限按本机实测值留出余量设定：dev 目录按「干净 target + build + test + clippy」实测
+1.45 GiB 校准为 2 GiB；macOS 分发包按实测（二进制 8.43 MiB、`.app` 8.53 MiB）取
+12 MiB，`.dmg` 按既有验收记录 4.3 MB 留余量取 8 MiB。Windows 安装包上限为预估，
+待 CI 首次产出后按实测校准；MSI 上限为预留（当前 CI 只打 NSIS）。
+
+> 多轮构建、依赖升级会让 `target/` 累积旧 artifact 逼近上限，属正常现象：
+> 先 `npm run clean:rust` 再重新构建即可，不要为此放宽上限。若确实需要调高上限，
+> 请在同一 PR 中说明原因，避免无声放宽。
+
 ## 使用
 
 ### 快捷键

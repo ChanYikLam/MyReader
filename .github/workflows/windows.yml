@@ -30,6 +30,9 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          # profile 调整后旧缓存里可能残留全量调试信息产物（cargo 不回收旧 artifact），
+          # 会让体积检查误报；key 递增使首次运行从干净 target 开始。
+          key: dev-profile-line-tables-v2
 
       - name: Install frontend dependencies
         run: npm ci
@@ -37,12 +40,18 @@ jobs:
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      - name: Check dev build artifact size
+        run: node scripts/check-size.mjs --profile dev
+
       - name: Build NSIS installer
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: --bundles nsis
+
+      - name: Check installer size budget
+        run: node scripts/check-size.mjs --profile release
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4

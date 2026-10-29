@@ -538,12 +538,20 @@ katex.renderToString(tex, {
   - 用户正常终端里 `npm run tauri build` 不受影响（`node_modules` 已安装、cargo 使用其默认 `~/.cargo`）。
 - 工具链：Rust 1.96 / Node 22 / Apple CLT（无完整 Xcode，Tauri 构建可用）；目标架构 `aarch64-apple-darwin`（不做 universal 二进制）。
 - 构建产物路径：`src-tauri/target/release/bundle/macos/MyReader.app`（`.app` 已被忽略）。
-- 每次提交前门禁脚本（手动执行，不引入 CI）：
+- Rust 构建产物体积控制（全仓库长期策略，防 `src-tauri/target/` 无上限膨胀）：
+  - dev profile 只保留本 crate 的行号级调试信息（`debug = "line-tables-only"`），
+    第三方依赖调试信息全部关闭（`[profile.dev.package."*"] debug = 0`）；release 保持 LTO / `opt-level = "s"` / `strip`；
+  - `[lib]` 只产出桌面端需要的 `rlib`，不再生成移动端才用的 `staticlib` / `cdylib` 冗余拷贝；
+  - `size-budget.json` 声明各产物上限（dev `target/debug`、release 二进制、macOS `.app`/`.dmg`、
+    Windows NSIS/MSI），`npm run size` 校验，超限退出码 1；Windows 打包 workflow
+    （`v*` tag 或手动 dispatch）在测试/打包流程中强制执行，macOS 分发包上限由本地校验兜底。
+- 每次提交前门禁脚本（手动执行；体积上限另有 Windows 打包 CI 兜底）：
   ```
   cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
   cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
   npm run typecheck   # tsc --noEmit
   npm run build       # vite build
+  npm run size        # 构建产物体积上限（需先构建）
   ```
 
 ---

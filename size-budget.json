@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "limits": {
+    "dev.debugTargetDir": {
+      "darwin": "2 GiB",
+      "win32": "3 GiB",
+      "default": "3 GiB"
+    },
+    "release.binary": {
+      "darwin": "12 MiB",
+      "win32": "16 MiB",
+      "default": "16 MiB"
+    },
+    "release.macosApp": "12 MiB",
+    "release.macosDmg": "8 MiB",
+    "release.windowsNsis": "10 MiB",
+    "release.windowsMsi": "12 MiB"
+  }
+}
