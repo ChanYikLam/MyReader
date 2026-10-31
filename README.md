@@ -63,6 +63,7 @@
 - 字号调节（⌘= / ⌘- / ⌘0，Windows 为 Ctrl+= / Ctrl+- / Ctrl+0，13–24px）
 - 每个文件的滚动位置独立记忆，重新打开首帧即恢复
 - 窗口大小 / 位置记忆，多显示器边界由插件处理
+- macOS 原生全屏（绿钮 / ⌃⌘F）；全屏下关闭窗口先退出全屏再隐藏，不残留黑屏 Space
 
 **明确不做**：编辑 / 保存 / 新建、源码视图、导出、云同步、插件与自定义 CSS、
 公式编号与 `\ref`、`\(...\)` / `\[...\]` 定界符、Linux 支持。
@@ -74,7 +75,7 @@
 | 项目 | 状态 |
 |---|---|
 | 代码适配 | 完成：导航守卫、平台菜单、单实例文件关联、路径规范化、Ctrl 快捷键、字体栈 |
-| macOS 回归验证 | 通过：79 个单元测试、clippy `-D warnings`、release 构建 |
+| macOS 回归验证 | 通过：84 个单元测试、clippy `-D warnings`、release 构建 |
 | Windows CI 构建 | 已配置 [`.github/workflows/windows.yml`](.github/workflows/windows.yml)，待首次运行 |
 | Windows 真机验收 | **待完成**（安装、文件关联、首帧、菜单、快捷键、高 DPI） |
 | 代码签名 | 未做，首次运行可能出现 SmartScreen 提示 |
@@ -154,8 +155,9 @@ cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 cargo fmt   --manifest-path src-tauri/Cargo.toml -- --check
 ```
 
-Rust 侧包含 78 个单元测试，覆盖解析、净化、图片路径、设置、主题映射等纯函数逻辑；
-界面行为与首帧表现按 [docs/VERIFICATION.md](docs/VERIFICATION.md) 的手册人工验收。
+Rust 侧包含 84 个单元测试，覆盖解析、净化、图片路径、设置、主题映射、全屏关闭状态机
+等纯函数逻辑；界面行为与首帧表现按 [docs/VERIFICATION.md](docs/VERIFICATION.md)
+的手册人工验收。
 
 ### 构建产物体积预算
 
@@ -209,7 +211,7 @@ npm run clean:rust      # 清理 target/，需要时回收磁盘
 | ⌘B | Ctrl+B | 显示 / 隐藏目录侧栏 |
 | ⌘= / ⌘+ / ⌘- | Ctrl+= / Ctrl++ / Ctrl+- | 增大 / 减小字号 |
 | ⌘0 | Ctrl+0 | 恢复默认字号 |
-| ⌘W | Ctrl+W | 隐藏窗口（点 Dock 图标 / 任务栏按钮恢复） |
+| ⌘W | Ctrl+W | 隐藏窗口（点 Dock 图标 / 任务栏按钮恢复；macOS 全屏时先退出全屏再隐藏） |
 
 ### 命令行
 
@@ -295,6 +297,9 @@ npm run clean:rust      # 清理 target/，需要时回收磁盘
 - 本地图片只加载 Markdown 中真实引用且存在的文件（缺失显示 alt 占位）。
 - 非法 UTF-8 文件以替换字符宽松解码；超过 32 MB 或含二进制内容的文件拒绝打开并显示错误页。
 - 公式与图片远多于 2000 个的极端文档未做懒渲染（当前策略为全部公式在 reveal 前渲染）。
+- macOS 全屏下关闭窗口会先播放退出全屏动画，再延迟约 2s 隐藏：Tauri 未暴露
+  「离开全屏」完成事件（见 [SPEC §12](SPEC.md)）；这是为消除全屏 Space 残留黑屏
+  所做的取舍，延迟期间窗口可见、无其他副作用。
 - 仅构建并验证 macOS 本机 arm64 架构，未提供 Universal 二进制；Intel Mac 需自行交叉构建。
 - Windows 版本已做代码与打包适配，并提供 GitHub Actions 构建；仍需在 Windows 真机完成人工验收。
 - 未做 Apple Developer ID 签名与公证，分发给他人时需处理 Gatekeeper 提示（见下节）。

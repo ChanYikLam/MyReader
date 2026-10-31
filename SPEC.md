@@ -378,6 +378,20 @@ katex.renderToString(tex, {
 - Window：Minimize / Zoom / Bring All to Front（标准）
 - Open Recent 变化时重建 File 子菜单（`app.set_menu`）。
 
+**关闭窗口语义**：红叉 / `Cmd+W` / 菜单「关闭窗口」统一走
+`RunEvent::WindowEvent::CloseRequested` → `api.prevent_close()` + 隐藏窗口
+（保留前端状态，点 Dock 图标或再次打开文件恢复，不退出应用）。
+
+macOS 原生全屏下不能直接 `hide()`：会打断 Space 过渡，留下一个没有窗口的全屏
+Space——整屏黑屏且无法正常退出（`tauri#12056` / `electron#20263` 同类问题，实测
+复现：关闭后 0.5s/1.5s/3s 截图全黑）。正确处理是「先 `set_fullscreen(false)` →
+等退出全屏过渡结束 → 再 `hide()`」。Tauri 未暴露 leave-full-screen 事件，且
+`is_fullscreen()` 在请求退全屏的瞬间即变为 false，无法作为完成信号，因此隐藏由
+后台线程延迟 2s 后经主线程确认执行；`state::FullscreenCloseState` 状态机负责：
+过渡中重复关闭请求去重（不得二次 `hide()`）、Dock 重新唤起 / 再次打开文件时取消
+延迟隐藏、2s 后仍处于全屏（用户又进入全屏）则放弃隐藏。非 macOS 平台的全屏只是
+无边框铺满屏幕，直接隐藏即可，保持原行为。
+
 **打开文件的 4 条路径**统一收敛到 Rust `open_path(path)` 命令：
 1. 菜单/快捷键 → Rust dialog（过滤 `.md/.markdown/.mdown/.txt`）
 2. 拖拽 → 前端 `onDragDropEvent` → invoke（多文件取第一个）
@@ -438,6 +452,7 @@ katex.renderToString(tex, {
   - `highlight`：高亮 HTML 为 class-based、未知语言无 panic、CSS 作用域前缀正确。
   - `media`：相对路径解析、`..` 路径、URL 编码文件名、尺寸探测（png/jpg/svg 无尺寸）。
   - `fs`：BOM 去除、非法 UTF-8 宽松、二进制/超大拒绝。
+  - `state`：启动参数解析、首帧 reveal 状态、全屏关闭状态机（重复关闭去重、重新唤起取消、仍处全屏时放弃隐藏）。
 - **夹具驱动**：`tests/fixtures/*.md` 为手写验收素材（不生成假数据）。
 - **前端**：`tsc --noEmit` 强类型；`npm run build` 通过；无自动化 DOM 测试框架（不引入额外依赖，前端逻辑保持薄）。
 - **手动验收**：按需求 1–18 条逐条记录（M6 输出验收记录表，含录屏证据描述）。
@@ -589,6 +604,7 @@ katex.renderToString(tex, {
 | 1 MB 文档 HTML IPC 传输/插入超预算 | M6 | 解析结果直接写临时文件 + 前端 `fetch` 本地协议读取；或分块 IPC（先首屏块后剩余块） |
 | 全部公式预渲染在超多公式文档上过慢 | 实测 >1.5 s | 视口优先：视口内同步渲染；视口外先用"离屏渲染→测高→写死高度"的占位批次，show 后填充（scrollbar 不跳） |
 | comrak/syntect 版本行为变化 | 升级时 | Cargo.lock 锁定 + 单元测试回归 |
+| macOS 全屏下隐藏主窗口残留黑屏 Space（关闭后无法正常退出） | 全屏 + 红叉 / `Cmd+W`（已修复，见 §12） | 先退出全屏、延迟 2s 再隐藏 + `FullscreenCloseState` 状态机；上游若提供 leave-full-screen 事件则改为事件驱动、去掉固定延迟 |
 | 菜单/窗口/文件关联的 Tauri 平台细节偏差 | 实现期 | 以实测为准微调实现细节，不改变验收目标 |
 
 ---
@@ -693,3 +709,28 @@ katex.renderToString(tex, {
   这不代表应用首帧缺陷。
 - 仍建议用户手动确认的验收项：Finder 双击 .md（15）、系统外观实时切换（11）、
   点击外链（13）、断网首次打开公式文档（5）、菜单/按钮点击交互。
+
+### 25.5 全屏关闭黑屏修复验证（2026-11-01）
+
+**问题**：macOS 原生全屏下点红叉（或 `Cmd+W`）关闭，旧实现直接 `hide()`，全屏
+Space 失去窗口后整屏黑屏，用户无法正常退出。
+
+**修复**（分支 `fix/macos-fullscreen-close-black-screen`）：`CloseRequested` 收敛到
+`request_hide_main_window`：非全屏直接隐藏；全屏先 `set_fullscreen(false)`，延迟 2s
+后经主线程确认再隐藏；`state::FullscreenCloseState` 保证过渡中重复关闭不二次隐藏、
+Dock 重新唤起/再次打开文件时取消、2s 后仍全屏则放弃。见 §12。
+
+**验证**（debug 构建 + 临时 E2E 钩子，调用 `NSWindow -performClose:` 等价点红叉；
+关闭请求后按时间点全屏截图，统计平均亮度与近黑像素占比）：
+
+| 关闭请求后采样 | 修复前 | 修复后 |
+|---|---|---|
+| 0.5s | 全黑（mean=0.0，dark_ratio=1.000） | 正常（mean=245.6，dark_ratio=0.000） |
+| 1.5s | 全黑（dark_ratio=1.000） | 正常（mean=244.0） |
+| 3.0s | 全黑（dark_ratio=1.000） | 正常（mean=244.0） |
+| 关闭后窗口状态 | hidden + `is_fullscreen=true` | hidden + `is_fullscreen=false` |
+| Dock 重新唤起 | 窗口恢复（仍全屏） | 窗口恢复（普通窗口） |
+| 退出应用 / 窗口状态持久化 | 正常 / 写入 `fullscreen=true` | 正常 / 写入 `fullscreen=false` |
+
+单元测试：`state::tests` 新增 5 个用例，全量 84 个通过；`cargo clippy -- -D warnings`、
+`cargo fmt --check` 通过。
