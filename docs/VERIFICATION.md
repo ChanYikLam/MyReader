@@ -159,7 +159,24 @@ done
 `open -a "$APP" <file.md>` 即 LaunchServices 打开文件路径（与 Finder 双击等价）。
 另请在 Finder 中双击一个 `.md` 文件确认由 MyReader 打开，并满足验收 6 的首帧要求。
 
-## 10. 收尾
+## 10. macOS 全屏关闭（回归，2026-11-01）
+
+macOS 原生全屏下，红叉 / ⌘W 关闭窗口必须先退出全屏再隐藏；直接隐藏会残留一个
+没有窗口的全屏 Space，表现为整屏黑屏、无法正常退出（详见 [SPEC §12](../SPEC.md)）。
+
+1. `open -a "$APP"` 启动，点窗口右上角绿色按钮（或 ⌃⌘F）进入原生全屏；
+2. 鼠标移到屏幕顶部唤出红绿灯，点左上角红色关闭按钮；
+3. 期望：先播放退出全屏动画，随后窗口隐藏、桌面正常显示；全程无黑屏、
+   无卡住的全屏 Space；
+4. 点 Dock 图标：窗口恢复为普通窗口（非全屏），可继续阅读；
+5. 重新进入全屏，按 ⌘W 重复一次，结果一致；⌘Q 仍可正常退出应用。
+
+> 判定要点：关闭后 `is_fullscreen` 应为 `false`（可用 `~/Library/Logs/MyReader/boot.log`
+> 的 `fullscreen-close hidden-after-exit` 日志辅助确认）；Dock 重新唤起不应回到
+> 卡死的全屏 Space。2026-11-01 的自动化实测（`NSWindow -performClose:` 等价点红叉）
+> 见 [SPEC §25.5](../SPEC.md)：修复前关闭后 0.5s/1.5s/3s 截图全黑，修复后各采样点正常。
+
+## 11. 收尾
 
 ```bash
 pkill -x myreader 2>/dev/null
@@ -180,6 +197,7 @@ defaults write com.apple.WindowManager GloballyEnabled -bool true && killall Doc
 | 12/13 | §7 | 窗口截图 + 交互 |
 | 14 | §8 | 帧号计时 |
 | 15 | §9 | Finder 实测 |
+| 全屏关闭（回归） | §10 | 关闭后截图 dark_ratio + 窗口状态日志 |
 
 ## Windows 附加验收
 

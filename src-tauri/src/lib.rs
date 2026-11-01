@@ -33,11 +33,105 @@ fn reveal_and_open(app: &tauri::AppHandle, path: std::path::PathBuf) {
             .try_state::<state::WindowState>()
             .is_some_and(|window_state| window_state.is_revealed());
         if revealed {
-            let _ = window.show();
-            let _ = window.set_focus();
+            show_main_window(app);
         }
         let _ = window.emit("open-file", path.display().to_string());
     }
+}
+
+/// 显示主窗口，并取消可能排队中的「退出全屏后隐藏」。
+///
+/// Dock 点击、再次打开文件、单实例转发都走这里：用户重新唤起窗口后，
+/// 之前全屏关闭留下的延迟隐藏必须作废，否则窗口会在几秒后自己消失。
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(close_state) = app.try_state::<state::FullscreenCloseState>() {
+        close_state.cancel();
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// 关窗请求的统一落点（红叉 / ⌘W / 菜单「关闭窗口」）。
+///
+/// 非全屏窗口直接隐藏；macOS 原生全屏窗口必须先退出全屏再隐藏
+/// （全屏 Space 里直接 hide 会留下黑屏，见 tauri#12056）。
+fn request_hide_main_window(app: &tauri::AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        // Windows 的全屏只是无边框铺满屏幕，直接隐藏不会残留黑屏，保持原行为。
+        let _ = window.hide();
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let Some(close_state) = app.try_state::<state::FullscreenCloseState>() else {
+            let _ = window.hide();
+            return;
+        };
+
+        match close_state.plan(window.is_fullscreen().unwrap_or(false)) {
+            state::CloseDisposition::HideNow => {
+                let _ = window.hide();
+            }
+            state::CloseDisposition::ExitFullscreenThenHide => {
+                if let Err(error) = window.set_fullscreen(false) {
+                    close_state.cancel();
+                    diagnostics::boot_log(&format!("fullscreen-close exit-error detail={error}"));
+                    return; // 退全屏失败：保持可见，用户可再点一次关闭
+                }
+                diagnostics::boot_log("fullscreen-close exit-fullscreen-requested");
+                schedule_fullscreen_hide(app.clone());
+            }
+            state::CloseDisposition::AlreadyPending => {
+                // 过渡中重复点击关闭：忽略，等延迟隐藏完成。
+            }
+        }
+    }
+}
+
+/// 退出全屏后延迟隐藏主窗口（macOS）。
+///
+/// Tauri 没有暴露「离开全屏」事件，而 `is_fullscreen()` 在请求退全屏时立刻
+/// 变为 false，无法作为过渡完成信号（tauri#12056）。macOS 全屏切换动画约
+/// 0.5s，这里沿用社区验证过的 2s 延迟；延迟结束后再确认状态，由状态机保证
+/// 只隐藏一次，且窗口已被重新唤起时不隐藏。
+#[cfg(target_os = "macos")]
+fn schedule_fullscreen_hide(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+
+        let app_for_main = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            let Some(close_state) = app_for_main.try_state::<state::FullscreenCloseState>() else {
+                return;
+            };
+            if !close_state.is_pending() {
+                return; // 已被新一次 show / 打开文件取消
+            }
+
+            let still_fullscreen = app_for_main
+                .get_webview_window("main")
+                .is_some_and(|window| window.is_fullscreen().unwrap_or(false));
+
+            if !close_state.settle(still_fullscreen) {
+                diagnostics::boot_log(&format!(
+                    "fullscreen-close abandoned still_fullscreen={still_fullscreen}"
+                ));
+                return;
+            }
+
+            if let Some(window) = app_for_main.get_webview_window("main") {
+                let _ = window.hide();
+                diagnostics::boot_log("fullscreen-close hidden-after-exit");
+            }
+        });
+    });
 }
 
 /// 把 panic 信息写入启动诊断日志（launchd 启动的应用 stderr 不可见）。
@@ -69,9 +163,8 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             if let Some(path) = state::initial_path_from_args(argv.into_iter().skip(1)) {
                 reveal_and_open(app, path);
-            } else if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
+            } else {
+                show_main_window(app);
             }
         }))
         .plugin(tauri_plugin_dialog::init())
@@ -91,6 +184,7 @@ pub fn run() {
         // 在 build 阶段注册状态：RunEvent::Opened 可能在 setup 之前到达。
         .manage(startup_state)
         .manage(state::WindowState::default())
+        .manage(state::FullscreenCloseState::default())
         .setup(move |app| {
             highlight::prewarm();
 
@@ -126,17 +220,16 @@ pub fn run() {
         .expect("MyReader 初始化失败");
 
     app.run(|app_handle, event| match event {
-        // Cmd+W / 菜单「关闭窗口」：隐藏主窗口而不是销毁，
+        // Cmd+W / 菜单「关闭窗口」/ macOS 红叉：隐藏主窗口而不是销毁，
         // 这样文件关联/再次打开时还能复用同一个窗口与前端状态。
+        // 全屏时不能直接隐藏（会残留黑屏 Space），交给 request_hide_main_window。
         tauri::RunEvent::WindowEvent {
             label,
             event: tauri::WindowEvent::CloseRequested { api, .. },
             ..
         } if label == "main" => {
             api.prevent_close();
-            if let Some(window) = app_handle.get_webview_window("main") {
-                let _ = window.hide();
-            }
+            request_hide_main_window(app_handle);
         }
         // Finder 双击 / `open -a` 打开文件时 macOS 投递的打开事件。
         tauri::RunEvent::Opened { urls } => {
@@ -151,10 +244,7 @@ pub fn run() {
                 .try_state::<state::WindowState>()
                 .is_some_and(|window_state| window_state.is_revealed());
             if revealed {
-                if let Some(window) = app_handle.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+                show_main_window(app_handle);
             }
         }
         _ => {}
